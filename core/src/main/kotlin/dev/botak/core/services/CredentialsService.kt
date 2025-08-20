@@ -3,30 +3,33 @@ package dev.botak.core.services
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.google.auth.oauth2.AccessToken
+import com.google.auth.oauth2.GoogleCredentials
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.time.Instant
 import java.util.*
 
-class TTSService(
-    accessToken: AccessToken = AccessToken("", null),
+class CredentialsService(
+    private var accessToken: AccessToken = AccessToken("", null),
 ) {
     companion object {
-        private val LOGGER = org.slf4j.LoggerFactory.getLogger(TTSService::class.java)
+        private val LOGGER = org.slf4j.LoggerFactory.getLogger(CredentialsService::class.java)
     }
 
-    private var _accessToken: AccessToken = accessToken
-    val accessToken: AccessToken
+    private var cachedCredentials: GoogleCredentials? = null
         get() {
-            if (_accessToken.tokenValue == "" || isTokenExpired()) {
-                _accessToken = fetchAccessToken()
+            if (accessToken.tokenValue == "" || isTokenExpired()) {
+                accessToken = fetchAccessToken()
+                field = GoogleCredentials.create(accessToken)
             }
-            return _accessToken
+            return field
         }
     private val client by lazy { OkHttpClient() }
 
+    fun obtainCredentials(): GoogleCredentials = cachedCredentials ?: throw RuntimeException("Failed to obtain credentials")
+
     private fun isTokenExpired(): Boolean {
-        val isExpired = _accessToken.expirationTime?.before(Date()) ?: false
+        val isExpired = accessToken.expirationTime?.before(Date()) ?: false
         LOGGER.debug("Access token is ${if (isExpired) "expired" else "active"}")
         return isExpired
     }
@@ -40,7 +43,12 @@ class TTSService(
         LOGGER.debug("Fetching new access token...")
 
         val url = ConfigService.getString("tokenIssuerUrl")
-        val request = Request.Builder().url(url).get().build()
+        val request =
+            Request
+                .Builder()
+                .url(url)
+                .get()
+                .build()
 
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
