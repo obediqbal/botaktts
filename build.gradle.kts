@@ -27,6 +27,11 @@ subprojects {
         implementation("org.slf4j:slf4j-api:2.0.12")
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
         implementation("io.github.cdimascio:dotenv-kotlin:6.4.1")
+        runtimeOnly("ch.qos.logback:logback-classic:1.4.11")
+
+        implementation("com.fasterxml.jackson.core:jackson-databind:2.19.1")
+        implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.19.0")
+        runtimeOnly("com.fasterxml.jackson.module:jackson-module-kotlin:2.19.0")
     }
 }
 
