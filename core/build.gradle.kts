@@ -15,5 +15,9 @@ dependencies {
 }
 
 application {
-    mainClass.set("dev.botak.core.MainKt")
+    mainClass.set("dev.botak.core.InteractiveMainKt")
+}
+
+tasks.named<JavaExec>("run") {
+    standardInput = System.`in`
 }
