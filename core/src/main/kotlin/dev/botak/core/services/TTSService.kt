@@ -18,6 +18,7 @@ class TTSService {
         private val DEFAULT_LANGUAGE_CODE = ConfigService.getString("defaults.languageCode")
         private val DEFAULT_PITCH = ConfigService.getDouble("defaults.pitch")
         private val DEFAULT_SPEED = ConfigService.getDouble("defaults.speed")
+        private val DEFAULT_SAMPLE_RATE = ConfigService.getInt("defaults.sampleRate")
     }
 
     private val clientSettings: TextToSpeechSettings =
@@ -43,6 +44,8 @@ class TTSService {
         }
     private lateinit var audioConfig: AudioConfig
     private lateinit var voiceSelectionParams: VoiceSelectionParams
+    var sampleRateHz: Int = DEFAULT_SAMPLE_RATE
+        private set
 
     init {
         selectVoice(languageCode, voiceName)
@@ -50,10 +53,12 @@ class TTSService {
     }
 
     fun selectVoice(
-        languageCode: String = DEFAULT_LANGUAGE_CODE,
+        languageCode: String = this.languageCode,
         voiceName: String = DEFAULT_VOICE_NAME,
     ) {
-        require(isVoiceExists(languageCode, voiceName)) { "Can't find $voiceName in $languageCode" }
+        val listVoices = fetchListVoices(languageCode)
+        val voice = listVoices.firstOrNull { it.name == voiceName }
+        require(voice != null) { "Can't find $voiceName in $languageCode" }
 
         voiceSelectionParams =
             VoiceSelectionParams
@@ -84,16 +89,17 @@ class TTSService {
         audioConfig =
             AudioConfig
                 .newBuilder()
-                .setAudioEncoding(AudioEncoding.MP3)
+                .setAudioEncoding(AudioEncoding.LINEAR16)
                 .setPitch(newPitch)
                 .setSpeakingRate(newSpeed)
+                .setSampleRateHertz(DEFAULT_SAMPLE_RATE)
                 .build()
     }
 
-    private fun isVoiceExists(
-        languageCode: String,
-        voiceName: String,
-    ): Boolean = fetchListVoices(languageCode).any { it.name == voiceName }
+    fun fetchListVoices(languageCode: String = DEFAULT_LANGUAGE_CODE): List<Voice> = client.listVoices(languageCode).voicesList
+}
 
-    private fun fetchListVoices(languageCode: String = DEFAULT_LANGUAGE_CODE): List<Voice> = client.listVoices(languageCode).voicesList
+fun main() {
+    val ttsService = TTSService()
+    println(ttsService.fetchListVoices())
 }
