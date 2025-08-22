@@ -18,7 +18,7 @@ class CredentialsService(
 
     private var cachedCredentials: GoogleCredentials? = null
         get() {
-            if (accessToken.tokenValue == "" || isTokenExpired()) {
+            if (isTokenExpired()) {
                 accessToken = fetchAccessToken()
                 field = GoogleCredentials.create(accessToken)
             }
@@ -29,7 +29,7 @@ class CredentialsService(
     fun obtainCredentials(): GoogleCredentials = cachedCredentials ?: throw RuntimeException("Failed to obtain credentials")
 
     private fun isTokenExpired(): Boolean {
-        val isExpired = accessToken.expirationTime?.before(Date()) ?: false
+        val isExpired = accessToken.expirationTime?.before(Date()) ?: true
         LOGGER.debug("Access token is ${if (isExpired) "expired" else "active"}")
         return isExpired
     }
