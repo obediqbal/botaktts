@@ -85,7 +85,7 @@ class TTSService {
                 .setAudioConfig(audioConfig)
                 .build()
         return client.synthesizeSpeech(request).audioContent.toByteArray().also {
-            LOGGER.debug("Synthesized speech for text=${text.take(min(15, text.length))}")
+            LOGGER.info("Synthesized speech for text=${text.take(min(15, text.length))}")
         }
     }
 
