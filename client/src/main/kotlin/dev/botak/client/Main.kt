@@ -16,7 +16,9 @@ import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedTextField
+import androidx.compose.material.Surface
 import androidx.compose.material.Text
+import androidx.compose.material.TopAppBar
 import androidx.compose.material.darkColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,6 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.awt.ComposeWindow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -33,6 +37,9 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
+import org.jetbrains.skia.Surface
+import java.awt.MouseInfo
+import java.awt.Point
 
 fun main() =
     application {
@@ -44,17 +51,21 @@ fun main() =
             undecorated = true,
             state = windowState,
         ) {
-            App(windowState)
+            App(windowState, window)
         }
     }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 @Preview
-fun App(windowState: WindowState) {
+fun App(
+    windowState: WindowState,
+    window: ComposeWindow,
+) {
     val density = LocalDensity.current
     // State management - this will trigger recomposition when changed
     var inputText by remember { mutableStateOf("") }
+    var dragPoint by remember { mutableStateOf<Point?>(null) }
 
     val darkColors =
         darkColors(
@@ -82,21 +93,18 @@ fun App(windowState: WindowState) {
                     Modifier
                         .fillMaxWidth()
                         .pointerInput(Unit) {
-                            detectDragGestures { delta ->
-                                val deltaXDp = with(density) { delta.x.toDp() }
-                                val deltaYDp = with(density) { delta.y.toDp() }
-
-                                println("DeltaX: $deltaXDp, DeltaY: $deltaYDp")
-                                val currentPosition = windowState.position
-                                println("Current position: $currentPosition")
-                                if (currentPosition.isSpecified) {
-                                    val newPosition =
-                                        WindowPosition(
-                                            x = currentPosition.x + deltaXDp,
-                                            y = currentPosition.y + deltaYDp,
-                                        )
-                                    println("New position: $newPosition")
-                                    windowState.position = newPosition
+                            detectDragGestures(
+                                onDragStart = {
+                                    val mouse = MouseInfo.getPointerInfo().location
+                                    dragPoint = Point(mouse.x - window.x, mouse.y - window.y)
+                                },
+                                onDragEnd = { dragPoint = null },
+                                onDragCancel = { dragPoint = null },
+                            ) { change, dragAmount ->
+                                change.consume()
+                                val mouse = MouseInfo.getPointerInfo().location
+                                dragPoint?.let { offset ->
+                                    window.setLocation(mouse.x - offset.x, mouse.y - offset.y)
                                 }
                             }
                         },
@@ -111,9 +119,8 @@ fun App(windowState: WindowState) {
                         value = inputText,
                         onValueChange = { inputText = it },
                         label = { Text("Enter text to synthesize") },
-                        modifier = Modifier.fillMaxWidth().height(120.dp).verticalScroll(scrollState),
-                        maxLines = Int.MAX_VALUE,
-                        singleLine = false,
+                        modifier = Modifier.fillMaxWidth().height(60.dp),
+                        singleLine = true,
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
