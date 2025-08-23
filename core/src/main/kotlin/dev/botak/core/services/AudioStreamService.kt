@@ -16,6 +16,8 @@ class AudioStreamService {
         private val LOGGER = LoggerFactory.getLogger(AudioStreamService::class.java)
     }
 
+    var volumeFactor: Float = 1.0f
+
     suspend fun streamToVirtualAudio(
         audioData: ByteArray,
         sampleRate: Float,
@@ -50,7 +52,11 @@ class AudioStreamService {
             var offset = 0
             while (offset < audioData.size) {
                 val length = min(bufferSize, audioData.size - offset)
-                line.write(audioData, offset, length)
+                val chunk = audioData.copyOfRange(offset, offset + length)
+
+                applyGain(chunk, volumeFactor)
+                line.write(chunk, 0, chunk.size)
+
                 offset += length
                 ensureActive()
             }
@@ -59,6 +65,32 @@ class AudioStreamService {
             line.stop()
             line.close()
             LOGGER.debug("Completed streaming audio data")
+        }
+    }
+
+    private fun applyGain(
+        audioData: ByteArray,
+        gain: Float,
+    ) {
+        var i = 0
+        while (i < audioData.size - 1) {
+            // Convert 2 bytes (little endian) -> 16-bit sample
+            val low = audioData[i].toInt() and 0xFF
+            val high = audioData[i + 1].toInt()
+            var sample = (high shl 8) or low
+
+            // Scale
+            sample = (sample * gain).toInt()
+
+            // Clamp to 16-bit signed range
+            if (sample > Short.MAX_VALUE) sample = Short.MAX_VALUE.toInt()
+            if (sample < Short.MIN_VALUE) sample = Short.MIN_VALUE.toInt()
+
+            // Back to bytes
+            audioData[i] = (sample and 0xFF).toByte()
+            audioData[i + 1] = ((sample shr 8) and 0xFF).toByte()
+
+            i += 2
         }
     }
 }

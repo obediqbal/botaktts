@@ -16,6 +16,7 @@ private enum class Command {
     SETSPEED,
     SETPITCH,
     SETVOICE,
+    SETVOLUME,
     STOP,
     GETVOICENAMES,
 }
@@ -43,6 +44,7 @@ fun main() =
                 }
                 Command.SETSPEED.name -> ttsService.speed = input.toDouble()
                 Command.SETPITCH.name -> ttsService.pitch = input.toDouble()
+                Command.SETVOLUME.name -> audioStreamService.volumeFactor = input.toFloat()
                 Command.SETVOICE.name -> {
                     val splitted = input.split(" ")
                     ttsService.selectVoice(splitted[0], splitted[1])
