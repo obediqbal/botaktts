@@ -12,6 +12,8 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":core"))
+
     implementation(compose.desktop.currentOs)
     testImplementation(kotlin("test"))
 }
@@ -20,7 +22,7 @@ compose.desktop {
     application {
         mainClass = "dev.botak.client.MainKt"
         nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Exe)
             packageName = "BotakTTS Client"
             packageVersion = "1.0.0"
         }
