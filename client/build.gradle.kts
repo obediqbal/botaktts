@@ -5,6 +5,9 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"
 }
 
+val isDev: Provider<Boolean> =
+    providers.gradleProperty("dev").map { it.equals("true", ignoreCase = true) }.orElse(false)
+
 repositories {
     mavenCentral()
     maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
@@ -22,10 +25,21 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "dev.botak.client.MainKt"
+        if (isDev.get()) {
+            jvmArgs += listOf("-DisDev=true")
+        }
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Exe)
-            packageName = "BotakTTS Client"
-            packageVersion = "1.0.0"
+            packageName = "BotakTTSClient"
+            val version = "1.0.2"
+            packageVersion = version
+
+            windows {
+                upgradeUuid = "fb8d6aa0-dab3-4864-be2f-d14aafec4818"
+                msiPackageVersion = version
+                exePackageVersion = version
+                console = true
+            }
         }
     }
 }
