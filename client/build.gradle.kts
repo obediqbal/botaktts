@@ -14,6 +14,7 @@ repositories {
 dependencies {
     implementation(project(":core"))
 
+    implementation("com.github.kwhat:jnativehook:2.2.2")
     implementation(compose.desktop.currentOs)
     testImplementation(kotlin("test"))
 }

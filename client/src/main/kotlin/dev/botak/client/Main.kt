@@ -36,6 +36,7 @@ import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.darkColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +48,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -60,6 +66,8 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
+import com.github.kwhat.jnativehook.GlobalScreen
+import com.github.kwhat.jnativehook.NativeHookException
 import dev.botak.core.services.AudioStreamService
 import dev.botak.core.services.TTSService
 import kotlinx.coroutines.CoroutineScope
@@ -69,11 +77,15 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.skia.Surface
+import java.awt.AWTEvent.KEY_EVENT_MASK
 import java.awt.Dimension
 import java.awt.MouseInfo
 import java.awt.Point
+import java.awt.Toolkit
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
+import java.awt.event.KeyEvent
+import java.lang.Exception
 
 fun main() =
 
@@ -82,6 +94,32 @@ fun main() =
         val audioStreamService = AudioStreamService()
 
         val windowState = remember { WindowState() }
+        var isWindowVisible by remember { mutableStateOf(true) }
+
+        LaunchedEffect(Unit) {
+            try {
+                GlobalScreen.registerNativeHook()
+                val listener =
+                    GlobalHotKeyListener {
+                        isWindowVisible = !isWindowVisible
+                    }
+                GlobalScreen.addNativeKeyListener(listener)
+                println("Global hotkey registered")
+            } catch (e: Exception) {
+                println("Failed to register global hotkey listener: ${e.message}")
+            }
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                try {
+                    GlobalScreen.unregisterNativeHook()
+                } catch (e: NativeHookException) {
+                    println("Failed to unregister native hook: ${e.message}")
+                }
+            }
+        }
+
         Window(
             onCloseRequest = ::exitApplication,
             title = "Botak TTS",
@@ -89,6 +127,7 @@ fun main() =
             undecorated = true,
             alwaysOnTop = true,
             state = windowState,
+            visible = isWindowVisible,
         ) {
             val defaultWidth = 500
             val fixedHeight = 120
