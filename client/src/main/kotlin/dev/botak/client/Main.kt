@@ -76,6 +76,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.skia.Surface
@@ -88,6 +89,7 @@ import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
 import java.awt.event.KeyEvent
 import java.lang.Exception
+import javax.swing.SwingUtilities
 
 private val ttsService = TTSService()
 private val audioStreamService = AudioStreamService()
@@ -97,6 +99,7 @@ fun main() =
     application {
         val windowState = remember { WindowState() }
         var isWindowVisible by remember { mutableStateOf(true) }
+        val composeWindow = remember { mutableStateOf<ComposeWindow?>(null) }
 
         LaunchedEffect(Unit) {
             try {
@@ -104,6 +107,16 @@ fun main() =
                 val listener =
                     GlobalHotKeyListener {
                         isWindowVisible = !isWindowVisible
+                        if (isWindowVisible) {
+                            composeWindow.value?.let { win ->
+                                SwingUtilities.invokeLater {
+                                    win.toFront()
+                                    win.requestFocus()
+                                    win.requestFocusInWindow()
+                                    globalFocusRequester.requestFocus()
+                                }
+                            }
+                        }
                     }
                 GlobalScreen.addNativeKeyListener(listener)
                 println("Global hotkey registered")
@@ -145,6 +158,8 @@ fun main() =
                 window.maximumSize = Dimension(Int.MAX_VALUE, fixedHeight)
                 window.preferredSize = Dimension(defaultWidth, fixedHeight)
                 window.size = Dimension(defaultWidth, fixedHeight)
+
+                composeWindow.value = window
             }
 
             var job: Job? = null
