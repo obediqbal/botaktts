@@ -29,6 +29,8 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
+import androidx.compose.material.TextFieldColors
+import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.darkColors
 import androidx.compose.runtime.Composable
@@ -46,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -80,6 +83,7 @@ fun main() =
             title = "Botak TTS",
             transparent = true,
             undecorated = true,
+            alwaysOnTop = true,
             state = windowState,
         ) {
             val defaultWidth = 500
@@ -187,12 +191,14 @@ fun App(
                         onValueChange = { inputText = it },
                         label = { Text("Enter text to synthesize") },
                         modifier = Modifier.fillMaxWidth().fillMaxHeight().padding(16.dp),
+                        colors = TextFieldDefaults.outlinedTextFieldColors(textColor = if (isPlaying) Color.Gray else Color.White),
                         keyboardOptions =
                             KeyboardOptions.Default.copy(
                                 imeAction = ImeAction.Done,
                             ),
                         keyboardActions =
                             KeyboardActions(onDone = {
+                                if (isPlaying) return@KeyboardActions
                                 if (inputText.isBlank()) return@KeyboardActions
                                 val input = inputText
                                 inputText = ""
