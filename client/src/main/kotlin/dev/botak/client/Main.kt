@@ -5,6 +5,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -50,8 +52,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.WindowState
@@ -138,6 +142,7 @@ fun App(
     var isLoading by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(false) }
     var dragPoint by remember { mutableStateOf<Point?>(null) }
+    var nowPlaying by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
 
     val darkColors =
@@ -183,69 +188,73 @@ fun App(
                         },
                 elevation = 4.dp,
             ) {
-                Column(modifier = Modifier.wrapContentHeight()) {
-                    val scrollState = rememberScrollState()
-
-                    OutlinedTextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        label = { Text("Enter text to synthesize") },
-                        modifier = Modifier.fillMaxWidth().fillMaxHeight().padding(16.dp),
-                        colors = TextFieldDefaults.outlinedTextFieldColors(textColor = if (isPlaying) Color.Gray else Color.White),
-                        keyboardOptions =
-                            KeyboardOptions.Default.copy(
-                                imeAction = ImeAction.Done,
-                            ),
-                        keyboardActions =
-                            KeyboardActions(onDone = {
-                                if (isPlaying) return@KeyboardActions
-                                if (inputText.isBlank()) return@KeyboardActions
-                                val input = inputText
-                                inputText = ""
-                                isPlaying = true
-                                play(
-                                    input,
-                                    scope,
-                                    { isLoading = true },
-                                    {
-                                        isLoading = false
-                                        isPlaying = true
-                                    },
-                                    { isPlaying = false },
-                                )
-                            }),
-                        leadingIcon = {
-                            IconButton(
-                                onClick = {
-                                    if (isPlaying) stop(scope)
-                                    isPlaying = false
-                                },
-                                enabled = isPlaying,
-                            ) {
-                                if (isLoading) {
-                                    CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(24.dp), color = Color.Gray)
-                                } else {
-                                    Icon(
-                                        painter = painterResource("speaker.svg"),
-                                        contentDescription = "Speaker",
-                                        modifier = Modifier.size(24.dp),
-                                        tint = if (isPlaying) Color.Green else Color.Gray,
+                Column(modifier = Modifier.wrapContentHeight().wrapContentWidth()) {
+                    Column(modifier = Modifier.fillMaxHeight().padding(16.dp)) {
+                        OutlinedTextField(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            label = { Text("Enter text to synthesize") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = TextFieldDefaults.outlinedTextFieldColors(textColor = if (isPlaying) Color.Gray else Color.White),
+                            keyboardOptions =
+                                KeyboardOptions.Default.copy(
+                                    imeAction = ImeAction.Done,
+                                ),
+                            keyboardActions =
+                                KeyboardActions(onDone = {
+                                    if (isPlaying) return@KeyboardActions
+                                    if (inputText.isBlank()) return@KeyboardActions
+                                    val input = inputText
+                                    inputText = ""
+                                    isPlaying = true
+                                    play(
+                                        input,
+                                        scope,
+                                        { isLoading = true },
+                                        {
+                                            nowPlaying = input
+                                            isLoading = false
+                                            isPlaying = true
+                                        },
+                                        {
+                                            isPlaying = false
+                                            nowPlaying = ""
+                                        },
                                     )
+                                }),
+                            leadingIcon = {
+                                IconButton(
+                                    onClick = {
+                                        if (isPlaying) stop(scope)
+                                        nowPlaying = ""
+                                        isPlaying = false
+                                    },
+                                    enabled = isPlaying,
+                                ) {
+                                    if (isLoading) {
+                                        CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(24.dp), color = Color.Gray)
+                                    } else {
+                                        Icon(
+                                            painter = painterResource("speaker.svg"),
+                                            contentDescription = "Speaker",
+                                            modifier = Modifier.size(24.dp),
+                                            tint = if (isPlaying) Color.Green else Color.Gray,
+                                        )
+                                    }
                                 }
-                            }
-                        },
-                        singleLine = true,
-                    )
+                            },
+                            singleLine = true,
+                        )
+
+                        Text(
+                            text = "Now playing: ${nowPlaying.ifBlank { "Nothing" }}",
+                            color = Color.Gray,
+                            fontSize = 12.sp,
+                            overflow = TextOverflow.MiddleEllipsis,
+                            maxLines = 1,
+                        )
+                    }
                 }
-//                Column {
-//                    Button(
-//                        onClick = {
-//                        },
-//                        modifier = Modifier.align(Alignment.CenterHorizontally),
-//                    ) {
-//                        Text("Process Text")
-//                    }
-//                }
             }
         }
     }
