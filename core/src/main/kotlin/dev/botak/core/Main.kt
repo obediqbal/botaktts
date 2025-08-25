@@ -26,5 +26,5 @@ fun main() {
 
     val audioStreamService = AudioStreamService()
     println(ttsService.sampleRateHz.toFloat())
-    audioStreamService.streamToVirtualAudio(response, ttsService.sampleRateHz.toFloat())
+//    audioStreamService.streamToVirtualAudio(response, ttsService.sampleRateHz.toFloat())
 }
