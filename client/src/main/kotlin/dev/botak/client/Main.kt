@@ -282,11 +282,13 @@ fun App(
                             leadingIcon = {
                                 IconButton(
                                     onClick = {
-                                        if (isPlaying) stop(scope)
-                                        nowPlaying = ""
-                                        isPlaying = false
+                                        if (isPlaying && !isLoading) {
+                                            stop(scope)
+                                            nowPlaying = ""
+                                            isPlaying = false
+                                        }
                                     },
-                                    enabled = isPlaying,
+                                    enabled = isPlaying && !isLoading,
                                 ) {
                                     if (isLoading) {
                                         CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(24.dp), color = Color.Gray)
