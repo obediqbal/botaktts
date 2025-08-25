@@ -46,6 +46,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.ComposeWindow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
@@ -89,6 +91,7 @@ import java.lang.Exception
 
 private val ttsService = TTSService()
 private val audioStreamService = AudioStreamService()
+private val globalFocusRequester = FocusRequester()
 
 fun main() =
     application {
@@ -120,7 +123,10 @@ fun main() =
         }
 
         Window(
-            onCloseRequest = ::exitApplication,
+            onCloseRequest = {
+                GlobalScreen.unregisterNativeHook()
+                exitApplication()
+            },
             title = "Botak TTS",
             transparent = true,
             undecorated = true,
@@ -161,6 +167,7 @@ fun main() =
                         job?.cancelAndJoin()
                     }
                 },
+                focusRequester = globalFocusRequester,
             )
         }
     }
@@ -173,6 +180,7 @@ fun App(
     window: ComposeWindow,
     play: (text: String, scope: CoroutineScope, onLoad: () -> Unit, onStart: () -> Unit, onEnd: () -> Unit) -> Unit,
     stop: (scope: CoroutineScope) -> Unit,
+    focusRequester: FocusRequester,
 ) {
     val density = LocalDensity.current
     // State management - this will trigger recomposition when changed
@@ -182,6 +190,17 @@ fun App(
     var dragPoint by remember { mutableStateOf<Point?>(null) }
     var nowPlaying by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+
+    DisposableEffect(window) {
+        val listener =
+            object : java.awt.event.WindowAdapter() {
+                override fun windowActivated(e: java.awt.event.WindowEvent?) {
+                    focusRequester.requestFocus()
+                }
+            }
+        window.addWindowListener(listener)
+        onDispose { window.removeWindowListener(listener) }
+    }
 
     val darkColors =
         darkColors(
@@ -232,7 +251,7 @@ fun App(
                             value = inputText,
                             onValueChange = { inputText = it },
                             label = { Text("Enter text to synthesize") },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                             colors = TextFieldDefaults.outlinedTextFieldColors(textColor = if (isPlaying) Color.Gray else Color.White),
                             keyboardOptions =
                                 KeyboardOptions.Default.copy(
