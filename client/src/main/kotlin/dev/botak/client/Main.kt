@@ -22,6 +22,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
 import androidx.compose.material.Card
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
@@ -99,10 +100,12 @@ fun main() =
             App(
                 windowState = windowState,
                 window = window,
-                play = { text, scope, onEnd ->
-                    val speech = ttsService.synthesizeSpeech(text)
+                play = { text, scope, onLoad, onStart, onEnd ->
                     job =
                         scope.launch(Dispatchers.IO) {
+                            onLoad()
+                            val speech = ttsService.synthesizeSpeech(text)
+                            onStart()
                             audioStreamService.streamToVirtualAudio(speech, ttsService.sampleRateHz.toFloat())
                             onEnd()
                         }
@@ -122,12 +125,13 @@ fun main() =
 fun App(
     windowState: WindowState,
     window: ComposeWindow,
-    play: (text: String, scope: CoroutineScope, onEnd: () -> Unit) -> Unit,
+    play: (text: String, scope: CoroutineScope, onLoad: () -> Unit, onStart: () -> Unit, onEnd: () -> Unit) -> Unit,
     stop: (scope: CoroutineScope) -> Unit,
 ) {
     val density = LocalDensity.current
     // State management - this will trigger recomposition when changed
     var inputText by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(false) }
     var dragPoint by remember { mutableStateOf<Point?>(null) }
     val scope = rememberCoroutineScope()
@@ -193,7 +197,16 @@ fun App(
                                 val input = inputText
                                 inputText = ""
                                 isPlaying = true
-                                play(input, scope) { isPlaying = false }
+                                play(
+                                    input,
+                                    scope,
+                                    { isLoading = true },
+                                    {
+                                        isLoading = false
+                                        isPlaying = true
+                                    },
+                                    { isPlaying = false },
+                                )
                             }),
                         leadingIcon = {
                             IconButton(
@@ -203,12 +216,16 @@ fun App(
                                 },
                                 enabled = isPlaying,
                             ) {
-                                Icon(
-                                    painter = painterResource("speaker.svg"),
-                                    contentDescription = "Speaker",
-                                    modifier = Modifier.size(24.dp),
-                                    tint = if (isPlaying) Color.Green else Color.Gray,
-                                )
+                                if (isLoading) {
+                                    CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(24.dp), color = Color.Gray)
+                                } else {
+                                    Icon(
+                                        painter = painterResource("speaker.svg"),
+                                        contentDescription = "Speaker",
+                                        modifier = Modifier.size(24.dp),
+                                        tint = if (isPlaying) Color.Green else Color.Gray,
+                                    )
+                                }
                             }
                         },
                         singleLine = true,
