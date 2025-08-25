@@ -87,12 +87,11 @@ import java.awt.event.ComponentEvent
 import java.awt.event.KeyEvent
 import java.lang.Exception
 
+private val ttsService = TTSService()
+private val audioStreamService = AudioStreamService()
+
 fun main() =
-
     application {
-        val ttsService = TTSService()
-        val audioStreamService = AudioStreamService()
-
         val windowState = remember { WindowState() }
         var isWindowVisible by remember { mutableStateOf(true) }
 
