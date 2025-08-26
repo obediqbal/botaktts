@@ -1,6 +1,7 @@
 package dev.botak.client.windows
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.window.Window
@@ -22,7 +23,9 @@ fun SettingsWindow(
     ) {
         LOGGER.debug("Composing Settings Window...")
 
-        Text("Settings window")
+        MaterialTheme(colors = dev.botak.client.darkColors) {
+            Text("Settings window")
+        }
 
         LOGGER.debug("Composed Settings Window")
     }

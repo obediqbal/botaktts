@@ -173,17 +173,6 @@ private fun AppWindow(
         onDispose { window.removeWindowListener(listener) }
     }
 
-    val darkColors =
-        darkColors(
-            primary = Color(0xFF90CAF9),
-            primaryVariant = Color(0xFF1976D2),
-            secondary = Color(0xFFCE93D8),
-            background = Color(0x80000000), // Semi-transparent black
-            surface = Color(0xB0121212), // Semi-transparent dark gray
-            onBackground = Color.White,
-            onSurface = Color.White,
-        )
-
     fun startTTS() {
         if (isPlaying) return
         if (inputText.isBlank()) return
@@ -218,7 +207,7 @@ private fun AppWindow(
         }
     }
 
-    MaterialTheme(colors = darkColors) {
+    MaterialTheme(colors = dev.botak.client.darkColors) {
         Column(
             modifier =
                 Modifier
