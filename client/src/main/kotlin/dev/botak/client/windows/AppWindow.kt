@@ -23,6 +23,7 @@ import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material.darkColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,28 +42,112 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.WindowState
+import androidx.compose.ui.window.Window
+import com.github.kwhat.jnativehook.GlobalScreen
+import com.github.kwhat.jnativehook.NativeHookException
+import dev.botak.client.GlobalHotKeyListener
 import dev.botak.core.services.AudioStreamService
 import dev.botak.core.services.TTSService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
+import org.slf4j.LoggerFactory
+import java.awt.Dimension
 import java.awt.MouseInfo
 import java.awt.Point
+import javax.swing.SwingUtilities
+
+private val LOGGER = LoggerFactory.getLogger("dev.botak.client.AppWindow")
+
+@Composable
+@Preview
+fun AppMainWindow(
+    ttsService: TTSService,
+    audioStreamService: AudioStreamService,
+    focusRequester: FocusRequester,
+    exitApplication: () -> Unit,
+) {
+    var isWindowVisible by remember { mutableStateOf(true) }
+
+    Window(
+        onCloseRequest = exitApplication,
+        title = "Botak TTS",
+        transparent = true,
+        undecorated = true,
+        alwaysOnTop = true,
+        visible = isWindowVisible,
+    ) {
+        LOGGER.debug("Composing App Window...")
+
+        LaunchedEffect(Unit) {
+            registerHotkey {
+                isWindowVisible = !isWindowVisible
+                if (isWindowVisible) {
+                    SwingUtilities.invokeLater {
+                        window.toFront()
+                        window.requestFocus()
+                        window.requestFocusInWindow()
+                        focusRequester.requestFocus()
+                    }
+                }
+            }
+        }
+
+        DisposableEffect(Unit) {
+            onDispose { unregisterHotkey() }
+        }
+
+        LaunchedEffect(Unit) {
+            val defaultWidth = 500
+            val fixedHeight = 120
+            window.minimumSize = Dimension(defaultWidth, fixedHeight)
+            window.maximumSize = Dimension(Int.MAX_VALUE, fixedHeight)
+            window.preferredSize = Dimension(defaultWidth, fixedHeight)
+            window.size = Dimension(defaultWidth, fixedHeight)
+        }
+
+        AppWindow(
+            window = window,
+            ttsService = ttsService,
+            audioStreamService = audioStreamService,
+            focusRequester = focusRequester,
+        )
+
+        LOGGER.debug("Composed App Window")
+    }
+}
+
+private fun registerHotkey(onToggle: () -> Unit) {
+    try {
+        GlobalScreen.registerNativeHook()
+        val listener =
+            GlobalHotKeyListener(onToggle)
+        GlobalScreen.addNativeKeyListener(listener)
+        LOGGER.debug("Global hotkey registered")
+    } catch (e: Exception) {
+        LOGGER.error("Failed to register global hotkey listener: ${e.message}")
+    }
+}
+
+private fun unregisterHotkey() {
+    try {
+        GlobalScreen.unregisterNativeHook()
+        LOGGER.debug("Unregistered global hotkey")
+    } catch (e: NativeHookException) {
+        LOGGER.error("Failed to unregister native hook: ${e.message}")
+    }
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 @Preview
-fun AppWindow(
-    windowState: WindowState,
+private fun AppWindow(
     window: ComposeWindow,
     ttsService: TTSService,
     audioStreamService: AudioStreamService,
     focusRequester: FocusRequester,
 ) {
-    val density = LocalDensity.current
-    // State management - this will trigger recomposition when changed
     var inputText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(false) }
