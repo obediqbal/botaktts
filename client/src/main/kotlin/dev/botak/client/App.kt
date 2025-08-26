@@ -55,8 +55,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import java.awt.Dimension
+import java.awt.MenuItem
 import java.awt.MouseInfo
 import java.awt.Point
+import java.awt.PopupMenu
+import java.awt.SystemTray
+import java.awt.Toolkit
+import java.awt.TrayIcon
 import java.lang.Exception
 import javax.swing.SwingUtilities
 
@@ -69,6 +74,7 @@ fun start() =
         val windowState = remember { WindowState() }
         var isWindowVisible by remember { mutableStateOf(true) }
         val composeWindow = remember { mutableStateOf<ComposeWindow?>(null) }
+        var showSettings by remember { mutableStateOf(false) }
 
         LaunchedEffect(Unit) {
             try {
@@ -153,6 +159,40 @@ fun start() =
                 },
                 focusRequester = globalFocusRequester,
             )
+        }
+
+        if (showSettings) {
+            SystemTrayWindow { showSettings = false }
+        }
+
+        LaunchedEffect(Unit) {
+            if (SystemTray.isSupported()) {
+                val tray = SystemTray.getSystemTray()
+                val image = Toolkit.getDefaultToolkit().getImage("icon.png")
+
+                val popup = PopupMenu()
+
+                val settingsItem = MenuItem("Settings")
+                settingsItem.addActionListener {
+                    showSettings = true
+                }
+                popup.add(settingsItem)
+
+                val exitItem = MenuItem("Exit")
+                exitItem.addActionListener { exitApplication() }
+                popup.add(exitItem)
+
+                val trayIcon =
+                    TrayIcon(image, "Botak TTS", popup).apply {
+                        isImageAutoSize = true
+                    }
+
+                try {
+                    tray.add(trayIcon)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
         }
     }
 
