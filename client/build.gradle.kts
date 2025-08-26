@@ -31,7 +31,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Exe)
             packageName = "BotakTTSClient"
-            val version = "1.0.2"
+            val version = "1.0.4"
             packageVersion = version
 
             windows {
