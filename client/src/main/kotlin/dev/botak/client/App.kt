@@ -28,5 +28,6 @@ fun start() =
             exitApplication = ::exitApplication,
             onAppEnabled = { isAppEnabled = true },
             onAppDisabled = { isAppEnabled = false },
+            ttsService = ttsService,
         )
     }

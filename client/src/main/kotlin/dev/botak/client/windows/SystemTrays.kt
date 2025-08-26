@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Window
+import dev.botak.core.services.TTSService
 import org.slf4j.LoggerFactory
 import java.awt.CheckboxMenuItem
 import java.awt.MenuItem
@@ -25,6 +26,7 @@ fun SystemTrays(
     onAppEnabled: () -> Unit,
     onAppDisabled: () -> Unit,
     exitApplication: () -> Unit,
+    ttsService: TTSService,
 ) {
     var showSettings by remember { mutableStateOf(false) }
 
@@ -38,6 +40,7 @@ fun SystemTrays(
     }
 
     SettingsWindow(
+        ttsService = ttsService,
         visible = showSettings,
         onClose = { showSettings = false },
     )
