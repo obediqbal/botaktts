@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Window
 import org.slf4j.LoggerFactory
+import java.awt.CheckboxMenuItem
 import java.awt.MenuItem
 import java.awt.PopupMenu
 import java.awt.SystemTray
@@ -20,7 +21,11 @@ private val LOGGER = LoggerFactory.getLogger("dev.botak.client.windows.SettingsW
 
 @Composable
 @Preview
-fun SettingsWindow(exitApplication: () -> Unit) {
+fun SettingsWindow(
+    onAppEnabled: () -> Unit,
+    onAppDisabled: () -> Unit,
+    exitApplication: () -> Unit,
+) {
     var showSettings by remember { mutableStateOf(false) }
     Window(
         onCloseRequest = {
@@ -35,7 +40,9 @@ fun SettingsWindow(exitApplication: () -> Unit) {
         LaunchedEffect(Unit) {
             if (SystemTray.isSupported()) {
                 LOGGER.debug("System tray supported. Use system tray")
-                useSystemTray(onSettingsItem = { showSettings = true }, onExitItem = { exitApplication() })
+                useSystemTray(onSettingsItem = {
+                    showSettings = true
+                }, onExitItem = { exitApplication() }, onAppEnabled = onAppEnabled, onAppDisabled = onAppDisabled)
             }
         }
 
@@ -48,6 +55,8 @@ fun SettingsWindow(exitApplication: () -> Unit) {
 private fun useSystemTray(
     onSettingsItem: () -> Unit,
     onExitItem: () -> Unit,
+    onAppEnabled: () -> Unit,
+    onAppDisabled: () -> Unit,
 ) {
     val tray = SystemTray.getSystemTray()
     val image = Toolkit.getDefaultToolkit().getImage("icon.png")
@@ -57,6 +66,17 @@ private fun useSystemTray(
     val settingsItem = MenuItem("Settings")
     settingsItem.addActionListener { onSettingsItem() }
     popup.add(settingsItem)
+
+    val enabledItem = CheckboxMenuItem("Enabled", true)
+    enabledItem.addItemListener {
+        LOGGER.debug("Enabled toggle: ${enabledItem.state}")
+        if (enabledItem.state) {
+            onAppEnabled()
+        } else {
+            onAppDisabled()
+        }
+    }
+    popup.add(enabledItem)
 
     val exitItem = MenuItem("Exit")
     exitItem.addActionListener { onExitItem() }

@@ -67,8 +67,14 @@ fun AppMainWindow(
     audioStreamService: AudioStreamService,
     focusRequester: FocusRequester,
     exitApplication: () -> Unit,
+    enabled: Boolean,
 ) {
     var isWindowVisible by remember { mutableStateOf(true) }
+
+    LaunchedEffect(enabled) {
+        isWindowVisible = enabled
+        LOGGER.debug("${if (enabled) "Enabling" else "Disabling"} AppWindow")
+    }
 
     Window(
         onCloseRequest = exitApplication,
@@ -76,7 +82,7 @@ fun AppMainWindow(
         transparent = true,
         undecorated = true,
         alwaysOnTop = true,
-        visible = isWindowVisible,
+        visible = isWindowVisible && enabled,
     ) {
         LOGGER.debug("Composing App Window...")
 

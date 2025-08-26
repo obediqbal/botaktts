@@ -18,14 +18,19 @@ private val LOGGER = LoggerFactory.getLogger("dev.botak.client.App")
 
 fun start() =
     application {
+        var isAppEnabled by remember { mutableStateOf(true) }
+
         AppMainWindow(
             ttsService = ttsService,
             audioStreamService = audioStreamService,
             focusRequester = globalFocusRequester,
             exitApplication = ::exitApplication,
+            enabled = isAppEnabled,
         )
 
         SettingsWindow(
             exitApplication = ::exitApplication,
+            onAppEnabled = { isAppEnabled = true },
+            onAppDisabled = { isAppEnabled = false },
         )
     }
