@@ -35,7 +35,7 @@ jobs:
           echo "MSI_FILE=$MSI_FILE" >> $GITHUB_ENV
           
       - name: Read client version
-        run: echo "PROJECT_VERSION=$(./gradlew :client:printVersion)" >> $GITHUB_ENV
+        run: echo "PROJECT_VERSION=$(./gradlew -q :client:printVersion)" >> $GITHUB_ENV
       - name: Upload MSI to Release
         uses: softprops/action-gh-release@v1
         with:
