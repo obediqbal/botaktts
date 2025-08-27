@@ -49,3 +49,9 @@ tasks.test {
 kotlin {
     jvmToolchain(17)
 }
+
+tasks.register("printVersion") {
+    doLast {
+        println(project.version)
+    }
+}
