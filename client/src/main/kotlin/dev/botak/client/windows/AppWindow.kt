@@ -43,8 +43,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
-import com.github.kwhat.jnativehook.GlobalScreen
-import com.github.kwhat.jnativehook.NativeHookException
 import dev.botak.client.GlobalHotKeyListener
 import dev.botak.core.services.AudioStreamService
 import dev.botak.core.services.TTSService
@@ -52,10 +50,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
+import org.jnativehook.GlobalScreen
+import org.jnativehook.NativeHookException
 import org.slf4j.LoggerFactory
 import java.awt.Dimension
 import java.awt.MouseInfo
 import java.awt.Point
+import java.nio.file.Paths
+import java.util.logging.Level
+import java.util.logging.LogManager
+import java.util.logging.Logger
 import javax.swing.SwingUtilities
 
 private val LOGGER = LoggerFactory.getLogger("dev.botak.client.AppWindow")
@@ -126,6 +130,7 @@ fun AppMainWindow(
 
 private fun registerHotkey(onToggle: () -> Unit) {
     try {
+        Logger.getLogger(GlobalScreen::class.java.packageName).level = Level.OFF
         GlobalScreen.registerNativeHook()
         val listener =
             GlobalHotKeyListener(onToggle)

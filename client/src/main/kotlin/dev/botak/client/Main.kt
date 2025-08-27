@@ -15,17 +15,5 @@ private fun isRunningAsAdmin(): Boolean =
     }
 
 fun main() {
-    val isDev = System.getProperty("isDev", "false").toBoolean()
-    println(isDev)
-    if (!isDev && !isRunningAsAdmin()) {
-        JOptionPane.showMessageDialog(
-            null,
-            "This application requires Administrator rights.\nPlease right-click and choose 'Run as administrator'.",
-            "Administrator Required",
-            JOptionPane.ERROR_MESSAGE,
-        )
-        kotlin.system.exitProcess(1)
-    }
-
     dev.botak.client.start()
 }

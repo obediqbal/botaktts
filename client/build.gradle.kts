@@ -17,7 +17,8 @@ repositories {
 dependencies {
     implementation(project(":core"))
 
-    implementation("com.github.kwhat:jnativehook:2.2.2")
+// https://mvnrepository.com/artifact/com.1stleg/jnativehook
+    implementation("com.1stleg:jnativehook:2.1.0")
     implementation(compose.desktop.currentOs)
     testImplementation(kotlin("test"))
 }
@@ -31,7 +32,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Exe)
             packageName = "BotakTTSClient"
-            val version = "1.0.4"
+            val version = "1.0.5"
             packageVersion = version
 
             windows {

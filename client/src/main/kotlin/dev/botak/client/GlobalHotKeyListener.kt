@@ -1,7 +1,7 @@
 package dev.botak.client
 
-import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
-import com.github.kwhat.jnativehook.keyboard.NativeKeyListener
+import org.jnativehook.keyboard.NativeKeyEvent
+import org.jnativehook.keyboard.NativeKeyListener
 
 class GlobalHotKeyListener(
     private val onToggle: () -> Unit,
