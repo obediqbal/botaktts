@@ -1,12 +1,8 @@
 name: Build & Release MSI
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version (must match an existing GitHub release)'
-        required: true
-
+  workflow_dispatch
+  
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
