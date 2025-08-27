@@ -8,7 +8,6 @@ plugins {
 
 allprojects {
     group = "dev.botak"
-    version = "1.0-SNAPSHOT"
 
     repositories {
         mavenCentral()

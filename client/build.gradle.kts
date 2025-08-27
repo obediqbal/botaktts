@@ -30,15 +30,13 @@ compose.desktop {
             jvmArgs += listOf("-DisDev=true")
         }
         nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Exe)
+            targetFormats(TargetFormat.Msi)
             packageName = "BotakTTSClient"
-            val version = "1.0.5"
-            packageVersion = version
+            packageVersion = project.version as String?
 
             windows {
                 upgradeUuid = "fb8d6aa0-dab3-4864-be2f-d14aafec4818"
-                msiPackageVersion = version
-                exePackageVersion = version
+                msiPackageVersion = project.version as String?
                 console = true
             }
         }
