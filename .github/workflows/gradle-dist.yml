@@ -32,7 +32,9 @@ jobs:
       - name: Find MSI artifact
         run: |
           $msiFile = Get-ChildItem -Recurse client\build -Filter *.msi | Select-Object -First 1 -ExpandProperty FullName
-          echo "MSI_FILE=$msiFile" >> $env:GITHUB_ENV
+          # Convert to relative path with forward slashes
+          $relativePath = $msiFile.Replace("${{ github.workspace }}\", "").Replace("\", "/")
+          echo "MSI_FILE=$relativePath" >> $env:GITHUB_ENV
           
       - name: Read client version
         run: echo "PROJECT_VERSION=$(./gradlew -q :client:printVersion)" >> $env:GITHUB_ENV
