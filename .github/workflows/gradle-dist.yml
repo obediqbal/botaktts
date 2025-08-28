@@ -29,6 +29,9 @@ jobs:
       - name: Build MSI with Gradle
         run: ./gradlew :client:packageMsi
 
+      - name: Tree
+        run: tree
+
       - name: Find MSI artifact
         run: |
           MSI_FILE=$(find client/build -name "*.msi" | head -n 1)
