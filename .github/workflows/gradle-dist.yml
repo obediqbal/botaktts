@@ -5,7 +5,7 @@ on:
   
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     permissions:
       contents: write  
       packages: write
@@ -29,16 +29,14 @@ jobs:
       - name: Build MSI with Gradle
         run: ./gradlew :client:packageMsi
 
-      - name: Tree
-        run: tree
-
       - name: Find MSI artifact
         run: |
-          MSI_FILE=$(find client/build -name "*.msi" | head -n 1)
-          echo "MSI_FILE=$MSI_FILE" >> $GITHUB_ENV
+          MSI_FILE=$(Get-ChildItem -Recurse client\build -Filter *.msi | Select-Object -First 1 -ExpandProperty FullName)
+          echo "MSI_FILE=$MSI_FILE" >> $env:GITHUB_ENV
           
       - name: Read client version
-        run: echo "PROJECT_VERSION=$(./gradlew -q :client:printVersion)" >> $GITHUB_ENV
+        run: echo "PROJECT_VERSION=$(./gradlew -q :client:printVersion)" >> $env:GITHUB_ENV
+
       - name: Upload MSI to Release
         uses: softprops/action-gh-release@v1
         with:
