@@ -31,7 +31,7 @@ jobs:
 
       - name: Find MSI artifact
         run: |
-          MSI_FILE=$(find ./client/build/compose -name "**.msi" | head -n 1)
+          MSI_FILE=$(find ./client/build/compose/binaries/main/msi/ -name "*.msi" | head -n 1)
           echo "MSI_FILE=$MSI_FILE" >> $GITHUB_ENV
           
       - name: Read client version
