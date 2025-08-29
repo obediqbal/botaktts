@@ -1,7 +1,3 @@
-Thank you for the description! Here’s a suggested README for your botaktts project:
-
----
-
 # botaktts
 
 **Easy and lightweight Text to Speech (TTS) for gamers**
