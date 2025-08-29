@@ -5,7 +5,7 @@ on:
   
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     permissions:
       contents: write  
       packages: write
@@ -31,11 +31,14 @@ jobs:
 
       - name: Find MSI artifact
         run: |
-          MSI_FILE=$(find client/build/compose/binaries -name "*.msi" | head -n 1)
-          echo "MSI_FILE=$MSI_FILE" >> $GITHUB_ENV
+          $msiFile = Get-ChildItem -Recurse client\build -Filter *.msi | Select-Object -First 1 -ExpandProperty FullName
+          # Convert to relative path with forward slashes
+          $relativePath = $msiFile.Replace("${{ github.workspace }}\", "").Replace("\", "/")
+          echo "MSI_FILE=$relativePath" >> $env:GITHUB_ENV
           
       - name: Read client version
-        run: echo "PROJECT_VERSION=$(./gradlew :client:printVersion)" >> $GITHUB_ENV
+        run: echo "PROJECT_VERSION=$(./gradlew -q :client:printVersion)" >> $env:GITHUB_ENV
+
       - name: Upload MSI to Release
         uses: softprops/action-gh-release@v1
         with:
