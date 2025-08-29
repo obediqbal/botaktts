@@ -28,6 +28,8 @@ class CredentialsService(
 
     fun obtainCredentials(): GoogleCredentials = cachedCredentials ?: throw RuntimeException("Failed to obtain credentials")
 
+    fun isCredentialsValid(): Boolean = !isTokenExpired()
+
     private fun isTokenExpired(): Boolean {
         val isExpired = accessToken.expirationTime?.before(Date()) ?: true
         LOGGER.debug("Access token is ${if (isExpired) "expired" else "active"}")

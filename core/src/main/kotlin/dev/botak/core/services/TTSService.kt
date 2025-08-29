@@ -22,13 +22,22 @@ class TTSService {
         private val DEFAULT_SAMPLE_RATE = ConfigService.getInt("defaults.sampleRate")
     }
 
-    private val clientSettings: TextToSpeechSettings =
-        TextToSpeechSettings
-            .newBuilder()
-            .setCredentialsProvider(
-                FixedCredentialsProvider.create(CredentialsService().obtainCredentials()),
-            ).build()
-    private val client: TextToSpeechClient = TextToSpeechClient.create(clientSettings)
+    private val credentialsService = CredentialsService()
+
+    private var client: TextToSpeechClient? = null
+        get() {
+            if (field == null || !credentialsService.isCredentialsValid()) {
+                field?.close()
+                val clientSettings =
+                    TextToSpeechSettings
+                        .newBuilder()
+                        .setCredentialsProvider(
+                            FixedCredentialsProvider.create(credentialsService.obtainCredentials()),
+                        ).build()
+                field = TextToSpeechClient.create(clientSettings)
+            }
+            return field
+        }
     var languageCode: String = DEFAULT_LANGUAGE_CODE
         private set
     var voiceName: String = DEFAULT_VOICE_NAME
@@ -84,7 +93,7 @@ class TTSService {
                 .setVoice(voiceSelectionParams)
                 .setAudioConfig(audioConfig)
                 .build()
-        return client.synthesizeSpeech(request).audioContent.toByteArray().also {
+        return client!!.synthesizeSpeech(request).audioContent.toByteArray().also {
             LOGGER.info("Synthesized speech for text=${text.take(min(15, text.length))}")
         }
     }
@@ -106,7 +115,7 @@ class TTSService {
         LOGGER.debug("Updated audio config, speed=$newSpeed, pitch=$newPitch")
     }
 
-    fun fetchListVoices(languageCode: String = DEFAULT_LANGUAGE_CODE): List<Voice> = client.listVoices(languageCode).voicesList
+    fun fetchListVoices(languageCode: String = DEFAULT_LANGUAGE_CODE): List<Voice> = client!!.listVoices(languageCode).voicesList
 }
 
 fun main() {
