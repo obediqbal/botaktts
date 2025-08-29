@@ -10,7 +10,6 @@ import dev.botak.core.services.TTSService
 
 private val ttsService by lazy { TTSService() }
 private val audioStreamService by lazy { AudioStreamService() }
-private val globalFocusRequester = FocusRequester()
 
 fun start() =
     application {
@@ -19,7 +18,6 @@ fun start() =
         AppMainWindow(
             ttsService = ttsService,
             audioStreamService = audioStreamService,
-            focusRequester = globalFocusRequester,
             exitApplication = ::exitApplication,
             enabled = isAppEnabled,
         )
