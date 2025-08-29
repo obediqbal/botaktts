@@ -29,7 +29,7 @@ Thank you for the description! Here’s a suggested README for your botaktts pro
    Download and run the application.
 
 2. **Set up your virtual microphone**  
-   Make sure a virtual microphone is available and selected in your voice chat application. See: (VB-Audio Cable)[https://vb-audio.com/Cable/]
+   Make sure a virtual microphone is available and selected in your voice chat application. See: [VB-Audio Cable](https://vb-audio.com/Cable/)
 
 3. **Start using TTS!**  
    Type your message, hit enter, and your message will be spoken through the virtual mic.
