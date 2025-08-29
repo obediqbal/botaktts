@@ -32,23 +32,33 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.ComposeWindow
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
+import com.sun.jna.Native
+import com.sun.jna.Pointer
+import com.sun.jna.platform.win32.Kernel32
+import com.sun.jna.platform.win32.User32
+import com.sun.jna.platform.win32.WinDef
+import com.sun.jna.platform.win32.WinUser
 import dev.botak.client.GlobalHotKeyListener
 import dev.botak.core.services.AudioStreamService
 import dev.botak.core.services.TTSService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jnativehook.GlobalScreen
 import org.jnativehook.NativeHookException
@@ -56,6 +66,9 @@ import org.slf4j.LoggerFactory
 import java.awt.Dimension
 import java.awt.MouseInfo
 import java.awt.Point
+import java.awt.Window
+import java.awt.event.WindowEvent
+import java.awt.event.WindowFocusListener
 import java.nio.file.Paths
 import java.util.logging.Level
 import java.util.logging.LogManager
@@ -69,10 +82,10 @@ private val LOGGER = LoggerFactory.getLogger("dev.botak.client.AppWindow")
 fun AppMainWindow(
     ttsService: TTSService,
     audioStreamService: AudioStreamService,
-    focusRequester: FocusRequester,
     exitApplication: () -> Unit,
     enabled: Boolean,
 ) {
+    val focusRequester = remember { FocusRequester() }
     var isWindowVisible by remember { mutableStateOf(true) }
 
     LaunchedEffect(enabled) {
@@ -88,24 +101,41 @@ fun AppMainWindow(
         alwaysOnTop = true,
         visible = isWindowVisible && enabled,
     ) {
+        val focusManager = LocalFocusManager.current
+
         LOGGER.debug("Composing App Window...")
 
-        LaunchedEffect(Unit) {
+        DisposableEffect(Unit) {
             registerHotkey {
                 isWindowVisible = !isWindowVisible
                 if (isWindowVisible) {
                     SwingUtilities.invokeLater {
-                        window.toFront()
-                        window.requestFocus()
-                        window.requestFocusInWindow()
-                        focusRequester.requestFocus()
+                        LOGGER.debug("Requesting focus")
+                        forceFocusToWindow(window)
                     }
                 }
             }
-        }
 
-        DisposableEffect(Unit) {
-            onDispose { unregisterHotkey() }
+            val focusListener =
+                object : WindowFocusListener {
+                    override fun windowGainedFocus(e: WindowEvent) {
+                        LOGGER.debug("AppMainWindow gained focus")
+                        SwingUtilities.invokeLater {
+                            focusRequester.requestFocus()
+                        }
+                    }
+
+                    override fun windowLostFocus(e: WindowEvent) {
+                        LOGGER.debug("AppMainWindow lost focus")
+                        focusManager.clearFocus()
+                    }
+                }
+            window.addWindowFocusListener(focusListener)
+
+            onDispose {
+                unregisterHotkey()
+                window.removeWindowFocusListener(focusListener)
+            }
         }
 
         LaunchedEffect(Unit) {
@@ -150,6 +180,65 @@ private fun unregisterHotkey() {
     }
 }
 
+private fun forceFocusToWindow(window: Window) {
+    try {
+        // First, bring the window to the front
+        window.toFront()
+
+        // Then use JNA to force Windows focus
+        val hwnd = WinDef.HWND(Native.getComponentPointer(window))
+        val user32 = User32.INSTANCE
+
+        // Get the current foreground window
+        val foregroundHWnd = user32.GetForegroundWindow()
+
+        // Get the thread IDs
+        val kernel32 = Kernel32.INSTANCE
+        val currentThreadId = WinDef.DWORD(kernel32.GetCurrentThreadId().toLong())
+        val foregroundThreadId = WinDef.DWORD(user32.GetWindowThreadProcessId(foregroundHWnd, null).toLong())
+
+        // Attach to the foreground thread
+        user32.AttachThreadInput(foregroundThreadId, currentThreadId, true)
+
+        // Set the window position and focus
+        user32.SetWindowPos(
+            hwnd,
+            WinDef.HWND(Pointer.createConstant(-1)),
+            0,
+            0,
+            0,
+            0,
+            WinUser.SWP_NOSIZE or WinUser.SWP_NOMOVE or WinUser.SWP_SHOWWINDOW,
+        )
+        user32.SetWindowPos(
+            hwnd,
+            WinDef.HWND(Pointer.createConstant(-2)),
+            0,
+            0,
+            0,
+            0,
+            WinUser.SWP_NOSIZE or WinUser.SWP_NOMOVE or WinUser.SWP_SHOWWINDOW,
+        )
+
+        user32.ShowWindow(hwnd, WinUser.SW_RESTORE) // in case minimized
+        user32.SetForegroundWindow(hwnd)
+        user32.BringWindowToTop(hwnd)
+        user32.SetFocus(hwnd)
+        // Detach from the foreground thread
+        user32.AttachThreadInput(foregroundThreadId, currentThreadId, false)
+
+        // Ensure the window is activated
+        window.isVisible = true
+        window.toFront()
+
+        LOGGER.debug("Window forced to foreground")
+    } catch (e: Exception) {
+        LOGGER.error("Failed to force window focus: ${e.message}")
+        // Fallback to standard methods
+        window.toFront()
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 @Preview
@@ -166,17 +255,6 @@ private fun AppWindow(
     var nowPlaying by remember { mutableStateOf("") }
     var job by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
-
-    DisposableEffect(window) {
-        val listener =
-            object : java.awt.event.WindowAdapter() {
-                override fun windowActivated(e: java.awt.event.WindowEvent?) {
-                    focusRequester.requestFocus()
-                }
-            }
-        window.addWindowListener(listener)
-        onDispose { window.removeWindowListener(listener) }
-    }
 
     fun startTTS() {
         if (isPlaying) return
@@ -250,7 +328,10 @@ private fun AppWindow(
                             value = inputText,
                             onValueChange = { inputText = it },
                             label = { Text("Enter text to synthesize") },
-                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                            modifier =
+                                Modifier.fillMaxWidth().focusRequester(focusRequester).onFocusChanged { focusState ->
+                                    LOGGER.debug("Text field focus changed ${focusState.isFocused}")
+                                },
                             colors = TextFieldDefaults.outlinedTextFieldColors(textColor = if (isPlaying) Color.Gray else Color.White),
                             keyboardOptions =
                                 KeyboardOptions.Default.copy(

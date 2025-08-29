@@ -19,6 +19,8 @@ dependencies {
 
 // https://mvnrepository.com/artifact/com.1stleg/jnativehook
     implementation("com.1stleg:jnativehook:2.1.0")
+    implementation("net.java.dev.jna:jna:5.13.0")
+    implementation("net.java.dev.jna:jna-platform:5.13.0")
     implementation(compose.desktop.currentOs)
     testImplementation(kotlin("test"))
 }
