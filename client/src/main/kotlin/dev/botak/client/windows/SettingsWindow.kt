@@ -30,6 +30,8 @@ import androidx.compose.ui.window.Window
 import dev.botak.core.services.TTSService
 import org.slf4j.LoggerFactory
 
+import java.util.Locale
+
 private val LOGGER = LoggerFactory.getLogger("dev.botak.client.windows.SettingsWindow")
 
 @OptIn(ExperimentalMaterialApi::class)
@@ -80,7 +82,7 @@ fun SettingsWindow(
                         onExpandedChange = { langExpanded = !langExpanded },
                     ) {
                         OutlinedTextField(
-                            value = selectedLanguage,
+                            value = Locale.forLanguageTag(selectedLanguage).displayName,
                             onValueChange = {},
                             label = { Text("Language") },
                             readOnly = true,
@@ -106,7 +108,7 @@ fun SettingsWindow(
                                         ttsService.selectVoice(selectedLanguage, selectedVoiceName)
                                     },
                                 ) {
-                                    Text(language)
+                                    Text(Locale.forLanguageTag(language).displayName)
                                 }
                             }
                         }
