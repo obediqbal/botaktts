@@ -44,7 +44,8 @@ fun SettingsWindow(
     var selectedLanguage by remember { mutableStateOf(ttsService.languageCode) }
     var selectedVoiceName by remember { mutableStateOf(ttsService.voiceName) }
 
-    // Fetch voices dynamically
+    // Fetch languages and voices dynamically
+    val languages = ttsService.getLanguages()
     val voiceNames =
         remember(selectedLanguage) {
             ttsService.fetchListVoiceNames(selectedLanguage)
@@ -93,13 +94,15 @@ fun SettingsWindow(
                             expanded = langExpanded,
                             onDismissRequest = { langExpanded = false },
                         ) {
-                            DropdownMenuItem(
-                                onClick = {
-                                    selectedLanguage = "id-ID"
-                                    langExpanded = false
-                                },
-                            ) {
-                                Text(selectedLanguage)
+                            languages.forEach { language ->
+                                DropdownMenuItem(
+                                    onClick = {
+                                        selectedLanguage = language
+                                        langExpanded = false
+                                    },
+                                ) {
+                                    Text(language)
+                                }
                             }
                         }
                     }
