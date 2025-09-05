@@ -64,9 +64,17 @@ class TTSService {
         updateAudioConfig(speed, pitch)
     }
 
+    fun getLanguages(): List<String> =
+        client!!
+            .listVoices("")
+            .voicesList
+            .map { it.languageCodesList }
+            .flatten()
+            .distinct()
+
     fun selectVoice(
         languageCode: String = this.languageCode,
-        voiceName: String = DEFAULT_VOICE_NAME,
+        voiceName: String = this.voiceName,
     ) {
         LOGGER.debug("Attempting to select voice for language=$languageCode, voiceName=$voiceName")
         val listVoices = fetchListVoices(languageCode)
@@ -79,6 +87,9 @@ class TTSService {
                 .setLanguageCode(languageCode)
                 .setName(voiceName)
                 .build()
+
+        this.languageCode = languageCode
+        this.voiceName = voiceName
 
         LOGGER.info("Selected voice $voiceName")
     }
