@@ -59,15 +59,25 @@ class TTSService {
     var sampleRateHz: Int = DEFAULT_SAMPLE_RATE
         private set
 
+    private var allVoicesCache: List<Voice>? = null
+ 
+    private fun getAllVoices(): List<Voice> {
+        if (allVoicesCache == null) {
+            LOGGER.debug("Fetching all voices...")
+            allVoicesCache = client!!.listVoices("").voicesList
+        } else {
+            LOGGER.debug("Using cached all voices")
+        }
+        return allVoicesCache!!
+    }
+
     init {
         selectVoice(languageCode, voiceName)
         updateAudioConfig(speed, pitch)
     }
 
     fun getLanguages(): List<String> =
-        client!!
-            .listVoices("")
-            .voicesList
+        getAllVoices()
             .map { it.languageCodesList }
             .flatten()
             .distinct()
@@ -126,7 +136,7 @@ class TTSService {
         LOGGER.debug("Updated audio config, speed=$newSpeed, pitch=$newPitch")
     }
 
-    fun fetchListVoices(languageCode: String = DEFAULT_LANGUAGE_CODE): List<Voice> = client!!.listVoices(languageCode).voicesList
+    fun fetchListVoices(languageCode: String = DEFAULT_LANGUAGE_CODE): List<Voice> = getAllVoices().filter { it.languageCodesList.contains(languageCode) }
 }
 
 fun main() {
