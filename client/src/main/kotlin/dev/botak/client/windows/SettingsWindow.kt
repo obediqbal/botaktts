@@ -98,7 +98,12 @@ fun SettingsWindow(
                                 DropdownMenuItem(
                                     onClick = {
                                         selectedLanguage = language
+                                        val newVoices = ttsService.fetchListVoiceNames(language)
+                                        if (newVoices.isNotEmpty()) {
+                                            selectedVoiceName = newVoices.first()
+                                        }
                                         langExpanded = false
+                                        ttsService.selectVoice(selectedLanguage, selectedVoiceName)
                                     },
                                 ) {
                                     Text(language)
@@ -132,33 +137,12 @@ fun SettingsWindow(
                                     onClick = {
                                         selectedVoiceName = voice
                                         voiceExpanded = false
+                                        ttsService.selectVoice(selectedLanguage, selectedVoiceName)
                                     },
                                 ) {
                                     Text(voice)
                                 }
                             }
-                        }
-                    }
-
-                    Spacer(Modifier.weight(1f))
-
-                    // --- Buttons ---
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                    ) {
-                        TextButton(onClick = onClose) {
-                            Text("Cancel")
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Button(
-                            onClick = {
-                                ttsService.selectVoice(selectedLanguage, selectedVoiceName)
-                                onClose()
-                            },
-                            enabled = selectedVoiceName.isNotBlank(),
-                        ) {
-                            Text("Apply")
                         }
                     }
                 }
