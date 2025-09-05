@@ -15,10 +15,7 @@ import kotlin.math.min
 class TTSService {
     companion object {
         private val LOGGER = LoggerFactory.getLogger(TTSService::class.java)
-        private val DEFAULT_VOICE_NAME = ConfigService.getString("defaults.voiceName")
-        private val DEFAULT_LANGUAGE_CODE = ConfigService.getString("defaults.languageCode")
-        private val DEFAULT_PITCH = ConfigService.getDouble("defaults.pitch")
-        private val DEFAULT_SPEED = ConfigService.getDouble("defaults.speed")
+        private val USER_SETTINGS = ConfigService.loadUserSettings()
         private val DEFAULT_SAMPLE_RATE = ConfigService.getInt("defaults.sampleRate")
     }
 
@@ -38,20 +35,22 @@ class TTSService {
             }
             return field
         }
-    var languageCode: String = DEFAULT_LANGUAGE_CODE
+    var languageCode: String = USER_SETTINGS.languageCode
         private set
-    var voiceName: String = DEFAULT_VOICE_NAME
+    var voiceName: String = USER_SETTINGS.voiceName
         private set
-    var pitch: Double = DEFAULT_PITCH
+    var pitch: Double = USER_SETTINGS.pitch
         set(value) {
             updateAudioConfig(newPitch = value)
             field = value
+            ConfigService.saveUserSettings(ConfigService.UserSettings(languageCode, voiceName, value, speed))
             LOGGER.info("Set pitch to $field")
         }
-    var speed: Double = DEFAULT_SPEED
+    var speed: Double = USER_SETTINGS.speed
         set(value) {
             updateAudioConfig(newSpeed = value)
             field = value
+            ConfigService.saveUserSettings(ConfigService.UserSettings(languageCode, voiceName, pitch, value))
             LOGGER.info("Set speed to $speed")
         }
     private lateinit var audioConfig: AudioConfig
@@ -60,7 +59,7 @@ class TTSService {
         private set
 
     private var allVoicesCache: List<Voice>? = null
- 
+
     private fun getAllVoices(): List<Voice> {
         if (allVoicesCache == null) {
             LOGGER.debug("Fetching all voices...")
@@ -101,6 +100,9 @@ class TTSService {
         this.languageCode = languageCode
         this.voiceName = voiceName
 
+        // Save the updated settings
+        ConfigService.saveUserSettings(ConfigService.UserSettings(languageCode, voiceName, pitch, speed))
+
         LOGGER.info("Selected voice $voiceName")
     }
 
@@ -119,7 +121,7 @@ class TTSService {
         }
     }
 
-    fun fetchListVoiceNames(languageCode: String = DEFAULT_LANGUAGE_CODE): List<String> = fetchListVoices(languageCode).map { it.name }
+    fun fetchListVoiceNames(languageCode: String = USER_SETTINGS.languageCode): List<String> = fetchListVoices(languageCode).map { it.name }
 
     private fun updateAudioConfig(
         newSpeed: Double = speed,
@@ -136,7 +138,10 @@ class TTSService {
         LOGGER.debug("Updated audio config, speed=$newSpeed, pitch=$newPitch")
     }
 
-    fun fetchListVoices(languageCode: String = DEFAULT_LANGUAGE_CODE): List<Voice> = getAllVoices().filter { it.languageCodesList.contains(languageCode) }
+    fun fetchListVoices(languageCode: String = USER_SETTINGS.languageCode): List<Voice> =
+        getAllVoices().filter {
+            it.languageCodesList.contains(languageCode)
+        }
 }
 
 fun main() {
