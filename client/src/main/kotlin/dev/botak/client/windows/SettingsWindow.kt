@@ -9,29 +9,43 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
 import androidx.compose.material.Card
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.ExposedDropdownMenuBox
 import androidx.compose.material.ExposedDropdownMenuDefaults
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Slider
 import androidx.compose.material.SliderDefaults
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
+import androidx.compose.material.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import dev.botak.core.services.AudioStreamService
 import dev.botak.core.services.TTSService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
+import java.awt.Dimension
 import java.util.Locale
 
 private val LOGGER = LoggerFactory.getLogger("dev.botak.client.windows.SettingsWindow")
@@ -52,6 +66,15 @@ fun SettingsWindow(
     var currentSpeed by remember { mutableStateOf(ttsService.speed.toFloat()) }
     var currentVolume by remember { mutableStateOf(audioStreamService.volumeFactor) }
 
+    // Preview section states
+    var previewText by remember {
+        mutableStateOf(
+            "Movies, oh my gosh, I just just absolutely love them. They're like time machines taking you to different worlds and landscapes, and um, and I just can't get enough of it.",
+        )
+    }
+    var isPreviewPlaying by remember { mutableStateOf(false) }
+    var isPreviewLoading by remember { mutableStateOf(false) }
+
     // Fetch languages and voices dynamically
     val languages = ttsService.getLanguages()
     val voiceNames =
@@ -63,13 +86,43 @@ fun SettingsWindow(
     var langExpanded by remember { mutableStateOf(false) }
     var voiceExpanded by remember { mutableStateOf(false) }
 
+    // Scroll state for the window content
+    val scrollState = rememberScrollState()
+
+    // Coroutine scope for preview functionality
+    val scope = rememberCoroutineScope()
+
+    // Preview functionality
+    fun playPreview() {
+        if (isPreviewPlaying) return
+        if (previewText.isBlank()) return
+
+        scope.launch(Dispatchers.IO) {
+            try {
+                isPreviewPlaying = true
+                isPreviewLoading = true
+                val audio = ttsService.synthesizeSpeech(previewText)
+                isPreviewLoading = false
+                audioStreamService.streamToSpeakers(audio, ttsService.sampleRateHz.toFloat())
+            } finally {
+                isPreviewPlaying = false
+            }
+        }
+    }
+
     if (visible) {
         Window(
             onCloseRequest = onClose,
             title = "Botak TTS Settings",
             visible = true,
             enabled = true,
+            resizable = false,
         ) {
+            // Ensure window can resize to content
+            LaunchedEffect(Unit) {
+                window.minimumSize = Dimension(100, 750)
+                window.preferredSize = Dimension(100, 750)
+            }
             LOGGER.debug("Composing Settings Window...")
 
             MaterialTheme {
@@ -77,6 +130,7 @@ fun SettingsWindow(
                     modifier =
                         Modifier
                             .fillMaxSize()
+                            .verticalScroll(scrollState)
                             .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -196,6 +250,50 @@ fun SettingsWindow(
                             steps = 20,
                             modifier = Modifier.fillMaxWidth(),
                         )
+                    }
+
+                    // --- Preview Section ---
+                    Card(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Preview", style = MaterialTheme.typography.h6)
+
+                            OutlinedTextField(
+                                value = previewText,
+                                onValueChange = { previewText = it },
+                                label = { Text("Preview Text") },
+                                modifier = Modifier.fillMaxWidth(),
+                                maxLines = 3,
+                                colors =
+                                    TextFieldDefaults.outlinedTextFieldColors(
+                                        textColor = MaterialTheme.colors.onSurface,
+                                        backgroundColor = MaterialTheme.colors.surface,
+                                    ),
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                            ) {
+                                IconButton(
+                                    onClick = { playPreview() },
+                                    enabled = !isPreviewPlaying && previewText.isNotBlank(),
+                                ) {
+                                    if (isPreviewLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.width(24.dp),
+                                            strokeWidth = 2.dp,
+                                        )
+                                    } else {
+                                        Icon(
+                                            painter = painterResource("speaker.svg"),
+                                            contentDescription = "Preview Audio",
+                                            modifier = Modifier.width(24.dp),
+                                            tint = if (isPreviewPlaying) MaterialTheme.colors.primary else MaterialTheme.colors.onSurface,
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
