@@ -161,7 +161,7 @@ fun SettingsWindow(
                             value = currentSpeed,
                             onValueChange = { currentSpeed = it },
                             onValueChangeFinished = { ttsService.speed = currentSpeed.toDouble() },
-                            valueRange = 0.5f..2.0f,
+                            valueRange = 0.25f..4.0f,
                             steps = 15,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -174,7 +174,7 @@ fun SettingsWindow(
                             value = currentPitch,
                             onValueChange = { currentPitch = it },
                             onValueChangeFinished = { ttsService.pitch = currentPitch.toDouble() },
-                            valueRange = -10f..10f,
+                            valueRange = -20f..20f,
                             steps = 20,
                             modifier = Modifier.fillMaxWidth(),
                         )
