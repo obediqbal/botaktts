@@ -54,7 +54,7 @@ object ConfigService {
                         voiceName = getString("defaults.voiceName"),
                         pitch = getDouble("defaults.pitch"),
                         speed = getDouble("defaults.speed"),
-                        volume = 1.0f,
+                        volume = getDouble("defaults.volume").toFloat(),
                     )
                 LOGGER.info("Using default settings")
                 defaults
@@ -66,7 +66,7 @@ object ConfigService {
                 voiceName = getString("defaults.voiceName"),
                 pitch = getDouble("defaults.pitch"),
                 speed = getDouble("defaults.speed"),
-                volume = 1.0f,
+                volume = getDouble("defaults.volume").toFloat(),
             )
         }
 
