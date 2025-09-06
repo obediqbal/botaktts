@@ -31,34 +31,43 @@ class AudioStreamService {
         ConfigService.saveUserSettings()
     }
 
-    suspend fun streamToVirtualAudio(
+    private fun createAudioFormat(
+        sampleRate: Float,
+        channels: Int,
+    ): AudioFormat =
+        AudioFormat(
+            AudioFormat.Encoding.PCM_SIGNED,
+            sampleRate,
+            16,
+            channels,
+            channels * 2,
+            sampleRate,
+            false,
+        )
+
+    suspend fun streamToSpeakers(
         audioData: ByteArray,
         sampleRate: Float,
-        virtualAudioName: String = "CABLE Input (VB-Audio Virtual Cable)",
         channels: Int = 1,
     ) = withContext(Dispatchers.IO) {
-        LOGGER.debug("Streaming audio data to $virtualAudioName...")
-        val format =
-            AudioFormat(
-                AudioFormat.Encoding.PCM_SIGNED,
-                sampleRate,
-                16,
-                channels,
-                channels * 2,
-                sampleRate,
-                false,
-            )
+        val format = createAudioFormat(sampleRate, channels)
 
-        val mixerInfo =
-            AudioSystem.getMixerInfo().firstOrNull { it.name.contains(virtualAudioName) }
-                ?: throw IllegalStateException("Virtual Audio not found")
-
-        val mixer = AudioSystem.getMixer(mixerInfo)
+        // Get default system audio output line
         val lineInfo = DataLine.Info(SourceDataLine::class.java, format)
-        val line = mixer.getLine(lineInfo) as SourceDataLine
-
+        val line = AudioSystem.getLine(lineInfo) as SourceDataLine
         line.open(format)
-        line.start()
+
+        streamAudio(line, audioData, "to speakers")
+    }
+
+    private suspend fun streamAudio(
+        sourceLine: SourceDataLine,
+        audioData: ByteArray,
+        logMessage: String,
+    ) = withContext(Dispatchers.IO) {
+        LOGGER.debug("Streaming audio data $logMessage")
+
+        sourceLine.start()
 
         try {
             val bufferSize = 4096
@@ -68,17 +77,37 @@ class AudioStreamService {
                 val chunk = audioData.copyOfRange(offset, offset + length)
 
                 applyGain(chunk, volumeFactor)
-                line.write(chunk, 0, chunk.size)
+                sourceLine.write(chunk, 0, chunk.size)
 
                 offset += length
                 ensureActive()
             }
         } finally {
-            line.drain()
-            line.stop()
-            line.close()
-            LOGGER.debug("Completed streaming audio data")
+            sourceLine.drain()
+            sourceLine.stop()
+            sourceLine.close()
+            LOGGER.debug("Completed streaming audio data $logMessage")
         }
+    }
+
+    suspend fun streamToVirtualAudio(
+        audioData: ByteArray,
+        sampleRate: Float,
+        virtualAudioName: String = "CABLE Input (VB-Audio Virtual Cable)",
+        channels: Int = 1,
+    ) = withContext(Dispatchers.IO) {
+        val format = createAudioFormat(sampleRate, channels)
+
+        val mixerInfo =
+            AudioSystem.getMixerInfo().firstOrNull { it.name.contains(virtualAudioName) }
+                ?: throw IllegalStateException("Virtual Audio not found")
+
+        val mixer = AudioSystem.getMixer(mixerInfo)
+        val lineInfo = DataLine.Info(SourceDataLine::class.java, format)
+        val line = mixer.getLine(lineInfo) as SourceDataLine
+        line.open(format)
+
+        streamAudio(line, audioData, "to $virtualAudioName")
     }
 
     private fun applyGain(
