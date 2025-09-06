@@ -1,6 +1,8 @@
 package dev.botak.core.services
 
 import com.google.api.gax.core.FixedCredentialsProvider
+import com.google.api.gax.rpc.ApiException
+import com.google.api.gax.rpc.StatusCode
 import com.google.cloud.texttospeech.v1.AudioConfig
 import com.google.cloud.texttospeech.v1.AudioEncoding
 import com.google.cloud.texttospeech.v1.SynthesisInput
@@ -116,17 +118,32 @@ class TTSService {
         LOGGER.info("Selected voice $voiceName")
     }
 
+    // TODO: Add feedback that the voice doesn't support Pitch parameter
     fun synthesizeSpeech(text: String): ByteArray {
         LOGGER.debug("Synthesizing speech... text=$text")
         val input = SynthesisInput.newBuilder().setText(text).build()
-        val request =
+        val requestBuilder =
             SynthesizeSpeechRequest
                 .newBuilder()
                 .setInput(input)
                 .setVoice(voiceSelectionParams)
-                .setAudioConfig(audioConfig)
-                .build()
-        return client!!.synthesizeSpeech(request).audioContent.toByteArray().also {
+        return try {
+            val request =
+                requestBuilder
+                    .setAudioConfig(audioConfig)
+                    .build()
+            client!!.synthesizeSpeech(request).audioContent.toByteArray()
+        } catch (e: ApiException) {
+            if (e.statusCode.code != StatusCode.Code.INVALID_ARGUMENT) {
+                throw e
+            }
+            LOGGER.warn(e.message)
+            val request =
+                requestBuilder
+                    .setAudioConfig(createAudioConfig(speed, 0.0))
+                    .build()
+            client!!.synthesizeSpeech(request).audioContent.toByteArray()
+        } finally {
             LOGGER.info("Synthesized speech for text=${text.take(min(15, text.length))}")
         }
     }
@@ -137,16 +154,21 @@ class TTSService {
         newSpeed: Double = speed,
         newPitch: Double = pitch,
     ) {
-        audioConfig =
-            AudioConfig
-                .newBuilder()
-                .setAudioEncoding(AudioEncoding.LINEAR16)
-                .setPitch(newPitch)
-                .setSpeakingRate(newSpeed)
-                .setSampleRateHertz(DEFAULT_SAMPLE_RATE)
-                .build()
+        audioConfig = createAudioConfig(newSpeed, newPitch)
         LOGGER.debug("Updated audio config, speed=$newSpeed, pitch=$newPitch")
     }
+
+    private fun createAudioConfig(
+        speed: Double,
+        pitch: Double,
+    ): AudioConfig =
+        AudioConfig
+            .newBuilder()
+            .setAudioEncoding(AudioEncoding.LINEAR16)
+            .setPitch(pitch)
+            .setSpeakingRate(speed)
+            .setSampleRateHertz(DEFAULT_SAMPLE_RATE)
+            .build()
 
     fun fetchListVoices(languageCode: String = USER_SETTINGS.languageCode): List<Voice> =
         getAllVoices().filter {
