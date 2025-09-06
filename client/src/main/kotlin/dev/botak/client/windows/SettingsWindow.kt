@@ -156,7 +156,7 @@ fun SettingsWindow(
 
                     // --- Speed Slider ---
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        Text("Speed: $currentSpeed")
+                        Text("Speed: %.2f".format(currentSpeed))
                         Slider(
                             value = currentSpeed,
                             onValueChange = { currentSpeed = it },
@@ -169,7 +169,7 @@ fun SettingsWindow(
 
                     // --- Pitch Slider ---
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        Text("Pitch: $currentPitch")
+                        Text("Pitch: %.2f".format(currentPitch))
                         Slider(
                             value = currentPitch,
                             onValueChange = { currentPitch = it },
