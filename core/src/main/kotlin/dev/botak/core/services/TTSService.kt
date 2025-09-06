@@ -15,7 +15,7 @@ import kotlin.math.min
 class TTSService {
     companion object {
         private val LOGGER = LoggerFactory.getLogger(TTSService::class.java)
-        private val USER_SETTINGS = ConfigService.loadUserSettings()
+        private val USER_SETTINGS = ConfigService.userSettings
         private val DEFAULT_SAMPLE_RATE = ConfigService.getInt("defaults.sampleRate")
     }
 
@@ -43,14 +43,16 @@ class TTSService {
         set(value) {
             updateAudioConfig(newPitch = value)
             field = value
-            ConfigService.saveUserSettings(ConfigService.UserSettings(languageCode, voiceName, value, speed))
+            USER_SETTINGS.pitch = value
+            ConfigService.saveUserSettings()
             LOGGER.info("Set pitch to $field")
         }
     var speed: Double = USER_SETTINGS.speed
         set(value) {
             updateAudioConfig(newSpeed = value)
             field = value
-            ConfigService.saveUserSettings(ConfigService.UserSettings(languageCode, voiceName, pitch, value))
+            USER_SETTINGS.speed = value
+            ConfigService.saveUserSettings()
             LOGGER.info("Set speed to $speed")
         }
     private lateinit var audioConfig: AudioConfig
@@ -101,7 +103,9 @@ class TTSService {
         this.voiceName = voiceName
 
         // Save the updated settings
-        ConfigService.saveUserSettings(ConfigService.UserSettings(languageCode, voiceName, pitch, speed))
+        USER_SETTINGS.languageCode = languageCode
+        USER_SETTINGS.voiceName = voiceName
+        ConfigService.saveUserSettings()
 
         LOGGER.info("Selected voice $voiceName")
     }

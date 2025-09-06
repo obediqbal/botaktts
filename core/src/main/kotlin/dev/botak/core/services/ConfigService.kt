@@ -1,6 +1,5 @@
 package dev.botak.core.services
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.typesafe.config.ConfigFactory
 import org.slf4j.LoggerFactory
@@ -10,7 +9,6 @@ import java.nio.file.Paths
 object ConfigService {
     private val LOGGER by lazy { LoggerFactory.getLogger(ConfigService::class.java) }
     private val objectMapper = jacksonObjectMapper()
-    val config = ConfigFactory.load()
 
     // App data directory management
     private val appDataDir: String by lazy {
@@ -30,18 +28,20 @@ object ConfigService {
         }
         appDataPath
     }
-
     private val settingsFile = File(appDataDir, "settings.json")
+    val userSettings = loadUserSettings()
+    val config = ConfigFactory.load()
 
     data class UserSettings(
         var languageCode: String,
         var voiceName: String,
         var pitch: Double,
         var speed: Double,
+        var volume: Float,
     )
 
     // Load user settings from file or return defaults
-    fun loadUserSettings(): UserSettings =
+    private fun loadUserSettings(): UserSettings =
         try {
             if (settingsFile.exists()) {
                 val settings = objectMapper.readValue(settingsFile, UserSettings::class.java)
@@ -54,6 +54,7 @@ object ConfigService {
                         voiceName = getString("defaults.voiceName"),
                         pitch = getDouble("defaults.pitch"),
                         speed = getDouble("defaults.speed"),
+                        volume = 1.0f,
                     )
                 LOGGER.info("Using default settings")
                 defaults
@@ -65,13 +66,14 @@ object ConfigService {
                 voiceName = getString("defaults.voiceName"),
                 pitch = getDouble("defaults.pitch"),
                 speed = getDouble("defaults.speed"),
+                volume = 1.0f,
             )
         }
 
     // Save user settings to file
-    fun saveUserSettings(settings: UserSettings) {
+    fun saveUserSettings() {
         try {
-            objectMapper.writerWithDefaultPrettyPrinter().writeValue(settingsFile, settings)
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(settingsFile, userSettings)
             LOGGER.info("Saved user settings to ${settingsFile.absolutePath}")
         } catch (e: Exception) {
             LOGGER.error("Failed to save user settings: ${e.message}")

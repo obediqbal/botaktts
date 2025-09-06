@@ -27,5 +27,6 @@ fun start() =
             onAppEnabled = { isAppEnabled = true },
             onAppDisabled = { isAppEnabled = false },
             ttsService = ttsService,
+            audioStreamService = audioStreamService,
         )
     }

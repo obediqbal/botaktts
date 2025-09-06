@@ -14,9 +14,14 @@ import kotlin.math.min
 class AudioStreamService {
     companion object {
         private val LOGGER = LoggerFactory.getLogger(AudioStreamService::class.java)
+        private val USER_SETTINGS = ConfigService.userSettings
     }
 
-    var volumeFactor: Float = 1.0f
+    var volumeFactor: Float = USER_SETTINGS.volume
+        set(value) {
+            LOGGER.debug("Volume factor set to $value")
+            field = value
+        }
 
     suspend fun streamToVirtualAudio(
         audioData: ByteArray,
