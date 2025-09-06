@@ -19,6 +19,9 @@ class AudioStreamService {
 
     var volumeFactor: Float = USER_SETTINGS.volume
         set(value) {
+            require(value in 0.0..2.0) {
+                "Volume factor must be between 0.0 and 2.0"
+            }
             LOGGER.debug("Volume factor set to $value")
             field = value
         }

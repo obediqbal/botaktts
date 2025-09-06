@@ -41,6 +41,9 @@ class TTSService {
         private set
     var pitch: Double = USER_SETTINGS.pitch
         set(value) {
+            require(value in -20.0..20.0) {
+                "Pitch must be between -20.0 and 20.0"
+            }
             updateAudioConfig(newPitch = value)
             field = value
             USER_SETTINGS.pitch = value
@@ -49,6 +52,9 @@ class TTSService {
         }
     var speed: Double = USER_SETTINGS.speed
         set(value) {
+            require(value in 0.25..4.0) {
+                "Speed must be between 0.25 and 4.0"
+            }
             updateAudioConfig(newSpeed = value)
             field = value
             USER_SETTINGS.speed = value
