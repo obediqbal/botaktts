@@ -137,12 +137,17 @@ class TTSService {
             if (e.statusCode.code != StatusCode.Code.INVALID_ARGUMENT) {
                 throw e
             }
-            LOGGER.warn(e.message)
-            val request =
-                requestBuilder
-                    .setAudioConfig(createAudioConfig(speed, 0.0))
-                    .build()
-            client!!.synthesizeSpeech(request).audioContent.toByteArray()
+            when (e.message) {
+                "io.grpc.StatusRuntimeException: INVALID_ARGUMENT: This voice does not support pitch parameters at this time." -> {
+                    LOGGER.warn(e.message)
+                    val request =
+                        requestBuilder
+                            .setAudioConfig(createAudioConfig(speed, 0.0))
+                            .build()
+                    client!!.synthesizeSpeech(request).audioContent.toByteArray()
+                }
+                else -> throw e
+            }
         } finally {
             LOGGER.info("Synthesized speech for text=${text.take(min(15, text.length))}")
         }
