@@ -189,6 +189,9 @@ fun SettingsWindow(
                                 currentVolume = it
                                 audioStreamService.volumeFactor = currentVolume
                             },
+                            onValueChangeFinished = {
+                                audioStreamService.persistVolumeFactor()
+                            },
                             valueRange = 0f..2f,
                             steps = 20,
                             modifier = Modifier.fillMaxWidth(),

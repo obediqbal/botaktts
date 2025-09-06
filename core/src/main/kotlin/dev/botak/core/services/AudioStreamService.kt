@@ -23,6 +23,11 @@ class AudioStreamService {
             field = value
         }
 
+    fun persistVolumeFactor() {
+        USER_SETTINGS.volume = volumeFactor
+        ConfigService.saveUserSettings()
+    }
+
     suspend fun streamToVirtualAudio(
         audioData: ByteArray,
         sampleRate: Float,
