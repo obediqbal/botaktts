@@ -1,4 +1,4 @@
-name: Build & Release MSI
+name: Build & Release
 
 on:
   workflow_dispatch
@@ -26,23 +26,24 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Build MSI with Gradle
-        run: ./gradlew :client:packageMsi
-
-      - name: Find MSI artifact
-        run: |
-          $msiFile = Get-ChildItem -Recurse client\build -Filter *.msi | Select-Object -First 1 -ExpandProperty FullName
-          # Convert to relative path with forward slashes
-          $relativePath = $msiFile.Replace("${{ github.workspace }}\", "").Replace("\", "/")
-          echo "MSI_FILE=$relativePath" >> $env:GITHUB_ENV
-          
       - name: Read client version
         run: echo "PROJECT_VERSION=$(./gradlew -q :client:printVersion)" >> $env:GITHUB_ENV
 
-      - name: Upload MSI to Release
+      - name: Install NSIS
+        uses: negrutiu/nsis-install@v1
+
+      - name: Build NSIS Installer
+        run: ./gradlew :client:createInstaller
+
+      - name: Build Portable Executable
+        run: ./gradlew :client:createPortable
+
+      - name: Upload to Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ env.PROJECT_VERSION }}
-          files: ${{ env.MSI_FILE }}
+          files: |
+            client/build/distributions/BotakTTS-${{ env.PROJECT_VERSION }}-Setup.exe
+            client/build/distributions/BotakTTS-${{ env.PROJECT_VERSION }}-Portable.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
