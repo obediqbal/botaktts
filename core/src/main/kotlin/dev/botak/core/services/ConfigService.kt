@@ -29,8 +29,8 @@ object ConfigService {
         appDataPath
     }
     private val settingsFile = File(appDataDir, "settings.json")
-    val userSettings = loadUserSettings()
     val config = ConfigFactory.load()
+    val userSettings = loadUserSettings()
 
     data class UserSettings(
         var languageCode: String,
