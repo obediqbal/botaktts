@@ -29,14 +29,21 @@ jobs:
       - name: Install NSIS
         uses: negrutiu/nsis-install@v1
 
+      - name: Add NSIS to PATH
+        run: |
+          echo "C:\Program Files (x86)\NSIS" >> $env:GITHUB_PATH
+
+      - name: Verify makensis is available
+        run: makensis /VERSION
+
       - name: Read client version
         run: echo "PROJECT_VERSION=$(./gradlew -q :client:printVersion)" >> $env:GITHUB_ENV
 
       - name: Build NSIS Installer
-        run: ./gradlew :client:createInstaller -Pmakensis="C:\Program Files (x86)\NSIS\makensis.exe"
+        run: ./gradlew :client:createInstaller
 
       - name: Build Portable Executable
-        run: ./gradlew :client:createPortable -Pmakensis="C:\Program Files (x86)\NSIS\makensis.exe"
+        run: ./gradlew :client:createPortable
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
