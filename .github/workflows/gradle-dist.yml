@@ -26,11 +26,11 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Read client version
-        run: echo "PROJECT_VERSION=$(./gradlew -q :client:printVersion)" >> $env:GITHUB_ENV
-
       - name: Install NSIS
         uses: negrutiu/nsis-install@v1
+
+      - name: Read client version
+        run: echo "PROJECT_VERSION=$(./gradlew -q :client:printVersion)" >> $env:GITHUB_ENV
 
       - name: Build NSIS Installer
         run: ./gradlew :client:createInstaller
