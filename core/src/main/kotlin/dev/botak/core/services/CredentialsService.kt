@@ -25,6 +25,19 @@ class CredentialsService(
 ) {
     companion object {
         private val LOGGER = org.slf4j.LoggerFactory.getLogger(CredentialsService::class.java)
+
+        /**
+         * How long before its true expiration an access token is proactively treated as expired.
+         *
+         * This safety margin closes a time-of-check/time-of-use race in [isTokenExpired]: without
+         * it, a token that reads as "valid" with only seconds left could lapse while an in-flight
+         * Text-to-Speech request is still using it. The cached [GoogleCredentials] built via
+         * [GoogleCredentials.create] from a bare access token cannot self-refresh, so an expired
+         * token surfaces as a failed (`UNAUTHENTICATED`) request rather than a transparent refresh.
+         * Five minutes mirrors the conservative refresh lead time used by Google's own auth
+         * libraries.
+         */
+        internal const val TOKEN_SAFETY_MARGIN_MS: Long = 5 * 60 * 1000L
     }
 
     private var cachedCredentials: GoogleCredentials? = null
@@ -49,18 +62,30 @@ class CredentialsService(
     fun isCredentialsValid(): Boolean = !isTokenExpired()
 
     /**
-     * Determines whether the cached access token has expired.
+     * Determines whether the cached access token is expired or close enough to expiring that it
+     * should be refreshed before use.
      *
-     * A token with no [AccessToken.expirationTime] is treated as expired.
+     * A token with no [AccessToken.expirationTime] is treated as expired. Otherwise the token is
+     * considered expired once it lies within [TOKEN_SAFETY_MARGIN_MS] of its true expiration, so
+     * callers never build a request on a credential that might lapse mid-flight.
      *
      * Visibility is `internal` so unit tests can exercise the expiry logic directly without
      * having to drive a full HTTP refresh. Production callers treat this as private.
      *
-     * @return `true` if the token is expired or has no expiration time.
+     * @return `true` if the token has expired (or is about to), or has no expiration time.
      */
     internal fun isTokenExpired(): Boolean {
-        val isExpired = accessToken.expirationTime?.before(Date()) ?: true
-        LOGGER.debug("Access token is ${if (isExpired) "expired" else "active"}")
+        val expirationTime = accessToken.expirationTime ?: run {
+            LOGGER.debug("Access token has no expiration time; treating as expired")
+            return true
+        }
+        val now = System.currentTimeMillis()
+        val msUntilExpiry = expirationTime.time - now
+        val isExpired = msUntilExpiry <= TOKEN_SAFETY_MARGIN_MS
+        LOGGER.debug(
+            "Access token is ${if (isExpired) "expired" else "active"} " +
+                "(expires in $msUntilExpiry ms, safety margin is $TOKEN_SAFETY_MARGIN_MS ms)",
+        )
         return isExpired
     }
 
