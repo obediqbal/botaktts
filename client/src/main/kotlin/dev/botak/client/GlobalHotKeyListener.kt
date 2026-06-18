@@ -9,6 +9,14 @@ import java.util.logging.Logger
 
 private val LOGGER = org.slf4j.LoggerFactory.getLogger("dev.botak.client.GlobalHotkeyListener")
 
+/**
+ * Registers a global `Ctrl+Shift+H` hotkey via JNativeHook that invokes [onToggle] when pressed.
+ *
+ * Silences JNativeHook's own verbose logging and logs any registration failure rather than
+ * throwing. Call [unregisterGlobalHotkey] to release the native hook on shutdown.
+ *
+ * @param onToggle Callback invoked each time the hotkey is pressed.
+ */
 fun registerGlobalHotkey(onToggle: () -> Unit) {
     try {
         Logger.getLogger(GlobalScreen::class.java.packageName).level = Level.OFF
@@ -22,6 +30,10 @@ fun registerGlobalHotkey(onToggle: () -> Unit) {
     }
 }
 
+/**
+ * Unregisters the global native hook previously set up by [registerGlobalHotkey].
+ * Failures are logged rather than thrown.
+ */
 fun unregisterGlobalHotkey() {
     try {
         GlobalScreen.unregisterNativeHook()
@@ -31,12 +43,21 @@ fun unregisterGlobalHotkey() {
     }
 }
 
+/**
+ * Native key listener that detects the `Ctrl+Shift+H` chord and fires [onToggle].
+ *
+ * Tracks the pressed state of the modifier keys so the chord is only recognised when both are
+ * held at the time `H` is pressed.
+ *
+ * @param onToggle Callback invoked when the hotkey chord is detected.
+ */
 private class GlobalHotKeyListener(
     private val onToggle: () -> Unit,
 ) : NativeKeyListener {
     private var ctrlPressed = false
     private var shiftPressed = false
 
+    /** Updates modifier state and fires [onToggle] when `H` is pressed with both modifiers held. */
     override fun nativeKeyPressed(e: NativeKeyEvent?) {
         when (e?.keyCode) {
             NativeKeyEvent.VC_CONTROL -> ctrlPressed = true
@@ -49,6 +70,7 @@ private class GlobalHotKeyListener(
         }
     }
 
+    /** Clears modifier state when a modifier key is released. */
     override fun nativeKeyReleased(e: NativeKeyEvent?) {
         when (e?.keyCode) {
             NativeKeyEvent.VC_CONTROL -> ctrlPressed = false
@@ -56,6 +78,7 @@ private class GlobalHotKeyListener(
         }
     }
 
+    /** Not used; required by [NativeKeyListener]. */
     override fun nativeKeyTyped(e: NativeKeyEvent?) {
         // Not used
     }

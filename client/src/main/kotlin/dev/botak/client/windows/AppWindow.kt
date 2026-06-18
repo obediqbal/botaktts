@@ -62,6 +62,21 @@ import javax.swing.SwingUtilities
 
 private val LOGGER = LoggerFactory.getLogger("dev.botak.client.AppWindow")
 
+/**
+ * The main floating input window for the BotakTTS application.
+ *
+ * Renders a transparent, undecorated, always-on-top window containing the text input that drives
+ * TTS playback. The window is hidden/shown by the global `Ctrl+Shift+H` hotkey and when it gains
+ * focus the text field is focused automatically so the user can type immediately. Its visibility
+ * is also bound to the [enabled] flag, allowing the system tray to toggle the app on and off.
+ *
+ * On disposal the global hotkey is unregistered and the focus listener is removed.
+ *
+ * @param ttsService Service used to synthesize speech.
+ * @param audioStreamService Service used to stream audio to the virtual microphone.
+ * @param exitApplication Called when the user closes the window.
+ * @param enabled Whether the app is currently enabled; controls window visibility.
+ */
 @Composable
 @Preview
 fun AppMainWindow(
@@ -143,6 +158,18 @@ fun AppMainWindow(
     }
 }
 
+/**
+ * The draggable text-input card shown inside the main window.
+ *
+ * Holds the text field where the user types text to synthesize, a speaker/stop button, and a
+ * "now playing" status line. The card can be dragged anywhere on screen by holding and moving the
+ * pointer over it. Pressing the IME "done" key (Enter) triggers playback via [startTTS].
+ *
+ * @param window The underlying [ComposeWindow], used for drag-to-move positioning.
+ * @param ttsService Service used to synthesize speech.
+ * @param audioStreamService Service used to stream audio to the virtual microphone.
+ * @param focusRequester Requester used to focus the text field when the window gains focus.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 @Preview
@@ -160,6 +187,13 @@ private fun AppWindow(
     var job by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
 
+    /**
+     * Synthesizes and plays back the current input text.
+     *
+     * No-ops if playback is already in progress or the input is blank. The input is cleared on
+     * submission and synthesis + streaming run on a background coroutine; the running job is
+     * stored so it can be cancelled by [stopTTS].
+     */
     fun startTTS() {
         if (isPlaying) return
         if (inputText.isBlank()) return
@@ -184,6 +218,12 @@ private fun AppWindow(
             }
     }
 
+    /**
+     * Cancels any in-progress playback.
+     *
+     * No-ops if nothing is playing or synthesis is still loading. Otherwise the playback coroutine
+     * is cancelled and joined, and the status state is reset.
+     */
     fun stopTTS() {
         if (isPlaying && !isLoading) {
             scope.launch(Dispatchers.IO) {

@@ -11,6 +11,18 @@ import java.awt.Window
 
 private val LOGGER = LoggerFactory.getLogger("dev.botak.client.Utils")
 
+/**
+ * Forcibly brings the given AWT [window] to the foreground on Windows.
+ *
+ * Windows restricts which processes may steal focus; this works around that by attaching the
+ * current thread's input queue to the foreground thread's, briefly raising the window to
+ * topmost and back, then restoring, activating and focusing it. The input queues are detached
+ * again afterwards.
+ *
+ * If the native calls fail, the method falls back to [Window.toFront].
+ *
+ * @param window The window to focus.
+ */
 fun forceFocusToWindow(window: Window) {
     try {
         // First, bring the window to the front

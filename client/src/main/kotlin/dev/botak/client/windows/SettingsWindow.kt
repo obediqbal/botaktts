@@ -50,6 +50,21 @@ import java.util.Locale
 
 private val LOGGER = LoggerFactory.getLogger("dev.botak.client.windows.SettingsWindow")
 
+/**
+ * Settings window for the BotakTTS application.
+ *
+ * Lets the user choose a language and voice (fetched dynamically from the TTS service) and adjust
+ * speed, pitch and volume via sliders. Each control updates the underlying service and persists
+ * the change to user settings. A preview section synthesizes and plays back arbitrary text through
+ * the system speakers.
+ *
+ * The window is only composed when [visible] is `true`.
+ *
+ * @param ttsService Service used for voice listing, selection and preview synthesis.
+ * @param audioStreamService Service used to play preview audio and adjust volume.
+ * @param visible Whether the window should currently be shown.
+ * @param onClose Called when the user requests the window to close.
+ */
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 @Preview
@@ -92,7 +107,13 @@ fun SettingsWindow(
     // Coroutine scope for preview functionality
     val scope = rememberCoroutineScope()
 
-    // Preview functionality
+    /**
+     * Synthesizes and plays back the current preview text through the system speakers.
+     *
+     * No-ops if a preview is already playing or the preview text is blank. While synthesis is in
+     * progress the preview button shows a spinner; the playing/loading flags are cleared in a
+     * `finally` block.
+     */
     fun playPreview() {
         if (isPreviewPlaying) return
         if (previewText.isBlank()) return

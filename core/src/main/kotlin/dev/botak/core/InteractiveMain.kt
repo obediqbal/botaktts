@@ -11,6 +11,11 @@ import org.slf4j.LoggerFactory
 import java.util.Locale
 import java.util.Locale.getDefault
 
+/**
+ * The commands supported by the interactive CLI protocol used by [main].
+ *
+ * Each command is read from standard input as a name, followed by a single argument line.
+ */
 private enum class Command {
     SYNTH,
     SETSPEED,
@@ -23,6 +28,13 @@ private enum class Command {
 
 private val LOGGER = LoggerFactory.getLogger("MainInteractive")
 
+/**
+ * Interactive CLI entry point for the core module.
+ *
+ * Reads a line-delimited protocol from standard input: each request consists of a command name
+ * followed by an argument line. Synthesis is performed on a background coroutine and can be
+ * cancelled with [Command.STOP]. The loop runs until the input stream is closed.
+ */
 fun main() =
     runBlocking {
         val ttsService = TTSService()

@@ -21,6 +21,19 @@ import java.awt.TrayIcon
 
 private val LOGGER = LoggerFactory.getLogger("dev.botak.client.windows.SystemTrays")
 
+/**
+ * Installs the BotakTTS system tray icon and renders the settings window on demand.
+ *
+ * On first composition, if the platform supports a system tray, a tray icon is created with a
+ * popup menu providing access to Settings, an Enabled toggle, and Exit. The settings window is
+ * shown whenever the user selects the Settings menu item.
+ *
+ * @param onAppEnabled Called when the tray's Enabled checkbox is checked.
+ * @param onAppDisabled Called when the tray's Enabled checkbox is unchecked.
+ * @param exitApplication Called when the user selects Exit.
+ * @param ttsService Used to populate and drive the settings window.
+ * @param audioStreamService Used to populate and drive the settings window.
+ */
 @Composable
 @Preview
 fun SystemTrays(
@@ -49,6 +62,14 @@ fun SystemTrays(
     )
 }
 
+/**
+ * Creates and adds the system tray icon with its popup menu.
+ *
+ * @param onSettingsItem Called when the Settings menu item is selected.
+ * @param onExitItem Called when the Exit menu item is selected.
+ * @param onAppEnabled Called when the Enabled checkbox is checked.
+ * @param onAppDisabled Called when the Enabled checkbox is unchecked.
+ */
 private fun useSystemTray(
     onSettingsItem: () -> Unit,
     onExitItem: () -> Unit,

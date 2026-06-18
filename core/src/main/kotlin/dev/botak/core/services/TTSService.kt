@@ -14,6 +14,15 @@ import com.google.cloud.texttospeech.v1.VoiceSelectionParams
 import org.slf4j.LoggerFactory
 import kotlin.math.min
 
+/**
+ * Provides text-to-speech synthesis through the Google Cloud Text-to-Speech API.
+ *
+ * The service owns a lazily created [TextToSpeechClient] that is rebuilt whenever the cached OAuth
+ * credentials expire. Voice selection, pitch, speed and sample rate are configurable; pitch and
+ * speed changes are validated, applied to the audio config, and persisted to user settings.
+ *
+ * Voice listings are cached after the first fetch from the API to avoid repeated network calls.
+ */
 class TTSService {
     companion object {
         private val LOGGER = LoggerFactory.getLogger(TTSService::class.java)
@@ -37,10 +46,16 @@ class TTSService {
             }
             return field
         }
+    /** The BCP-47 language code of the currently selected voice. */
     var languageCode: String = USER_SETTINGS.languageCode
         private set
+    /** The name of the currently selected Google Cloud TTS voice. */
     var voiceName: String = USER_SETTINGS.voiceName
         private set
+    /**
+     * Voice pitch. Must be in the range `-20.0..20.0`. Assigning a new value updates the audio
+     * config, persists the setting, and logs the change.
+     */
     var pitch: Double = USER_SETTINGS.pitch
         set(value) {
             require(value in -20.0..20.0) {
@@ -52,6 +67,10 @@ class TTSService {
             ConfigService.saveUserSettings()
             LOGGER.info("Set pitch to $field")
         }
+    /**
+     * Speaking rate multiplier. Must be in the range `0.25..4.0` (`1.0` is normal speed).
+     * Assigning a new value updates the audio config, persists the setting, and logs the change.
+     */
     var speed: Double = USER_SETTINGS.speed
         set(value) {
             require(value in 0.25..4.0) {
@@ -65,11 +84,17 @@ class TTSService {
         }
     private lateinit var audioConfig: AudioConfig
     private lateinit var voiceSelectionParams: VoiceSelectionParams
+    /** The sample rate (in hertz) used for synthesized audio, e.g. `24000`. */
     var sampleRateHz: Int = DEFAULT_SAMPLE_RATE
         private set
 
     private var allVoicesCache: List<Voice>? = null
 
+    /**
+     * Returns every voice supported by the API, fetching and caching the list on first access.
+     *
+     * @return the full list of available [Voice]s.
+     */
     private fun getAllVoices(): List<Voice> {
         if (allVoicesCache == null) {
             LOGGER.debug("Fetching all voices...")
@@ -85,12 +110,27 @@ class TTSService {
         updateAudioConfig(speed, pitch)
     }
 
+    /**
+     * Returns the distinct list of BCP-47 language codes supported by the available voices.
+     *
+     * @return a deduplicated list of language codes.
+     */
     fun getLanguages(): List<String> =
         getAllVoices()
             .map { it.languageCodesList }
             .flatten()
             .distinct()
 
+    /**
+     * Selects the voice to use for synthesis.
+     *
+     * The voice must exist for the given [languageCode]; otherwise an [IllegalArgumentException]
+     * is thrown. The selection is persisted to user settings.
+     *
+     * @param languageCode BCP-47 language code; defaults to the currently selected one.
+     * @param voiceName Name of the voice; defaults to the currently selected one.
+     * @throws IllegalArgumentException if [voiceName] is not available for [languageCode].
+     */
     fun selectVoice(
         languageCode: String = this.languageCode,
         voiceName: String = this.voiceName,
@@ -118,6 +158,16 @@ class TTSService {
         LOGGER.info("Selected voice $voiceName")
     }
 
+    /**
+     * Synthesizes the given [text] into speech using the selected voice and audio config.
+     *
+     * Returns raw LINEAR16 PCM audio bytes. If the selected voice does not support the pitch
+     * parameter, synthesis is retried with a neutral pitch (`0.0`).
+     *
+     * @param text The text to synthesize.
+     * @return the synthesized audio content as a byte array.
+     * @throws ApiException if the API call fails with a non-recoverable error.
+     */
     // TODO: Add feedback that the voice doesn't support Pitch parameter
     fun synthesizeSpeech(text: String): ByteArray {
         LOGGER.debug("Synthesizing speech... text=$text")
@@ -153,8 +203,20 @@ class TTSService {
         }
     }
 
+    /**
+     * Returns the names of the voices available for the given [languageCode].
+     *
+     * @param languageCode BCP-47 language code; defaults to the user's selected language.
+     * @return a list of voice names.
+     */
     fun fetchListVoiceNames(languageCode: String = USER_SETTINGS.languageCode): List<String> = fetchListVoices(languageCode).map { it.name }
 
+    /**
+     * Rebuilds the [audioConfig] with the supplied [newSpeed] and [newPitch].
+     *
+     * @param newSpeed Speaking rate to apply; defaults to the current [speed].
+     * @param newPitch Pitch to apply; defaults to the current [pitch].
+     */
     private fun updateAudioConfig(
         newSpeed: Double = speed,
         newPitch: Double = pitch,
@@ -163,6 +225,13 @@ class TTSService {
         LOGGER.debug("Updated audio config, speed=$newSpeed, pitch=$newPitch")
     }
 
+    /**
+     * Builds an [AudioConfig] for LINEAR16 audio at the default sample rate.
+     *
+     * @param speed Speaking rate multiplier.
+     * @param pitch Pitch adjustment.
+     * @return the constructed [AudioConfig].
+     */
     private fun createAudioConfig(
         speed: Double,
         pitch: Double,
@@ -175,6 +244,12 @@ class TTSService {
             .setSampleRateHertz(DEFAULT_SAMPLE_RATE)
             .build()
 
+    /**
+     * Returns the voices that support the given [languageCode], filtered from the cached voice list.
+     *
+     * @param languageCode BCP-47 language code; defaults to the user's selected language.
+     * @return the list of matching [Voice]s.
+     */
     fun fetchListVoices(languageCode: String = USER_SETTINGS.languageCode): List<Voice> =
         getAllVoices().filter {
             it.languageCodesList.contains(languageCode)

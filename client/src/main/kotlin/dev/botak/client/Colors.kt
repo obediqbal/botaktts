@@ -3,6 +3,12 @@ package dev.botak.client
 import androidx.compose.material.darkColors
 import androidx.compose.ui.graphics.Color
 
+/**
+ * Dark Material color palette for the BotakTTS desktop UI.
+ *
+ * The background and surface colors are semi-transparent so the always-on-top input window can
+ * overlay other applications without fully occluding them.
+ */
 val darkColors =
     darkColors(
         primary = Color(0xFF90CAF9),

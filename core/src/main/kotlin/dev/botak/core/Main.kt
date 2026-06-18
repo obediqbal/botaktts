@@ -15,6 +15,12 @@ import okhttp3.Request
 import java.io.File
 import java.util.*
 
+/**
+ * Ad-hoc entry point used for manual testing of speech synthesis.
+ *
+ * Synthesizes a fixed sample sentence, writes the resulting audio to `output.wav`, and prints the
+ * configured sample rate. Not intended for production use.
+ */
 fun main() {
     val ttsService = TTSService()
     val response = ttsService.synthesizeSpeech("Oneeddd coba liat ini. Ada tulisan don't fall down")
