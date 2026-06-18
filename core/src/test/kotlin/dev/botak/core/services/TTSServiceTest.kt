@@ -6,6 +6,9 @@ import com.google.cloud.texttospeech.v1.AudioEncoding
 import com.google.cloud.texttospeech.v1.Voice
 import io.mockk.every
 import io.mockk.mockk
+import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -35,6 +38,51 @@ class TTSServiceTest {
             .setName(name)
             .addAllLanguageCodes(codes)
             .build()
+
+    /**
+     * Builds a minimal little-endian PCM WAV file around [pcmData].
+     *
+     * @param pcmData the raw PCM data chunk bytes.
+     * @return a valid RIFF/WAVE byte stream containing [pcmData].
+     */
+    private fun wavBytes(pcmData: ByteArray): ByteArray {
+        val output = ByteArrayOutputStream()
+        output.write("RIFF".toByteArray(Charsets.US_ASCII))
+        output.writeIntLE(36 + pcmData.size)
+        output.write("WAVE".toByteArray(Charsets.US_ASCII))
+        output.write("fmt ".toByteArray(Charsets.US_ASCII))
+        output.writeIntLE(16)
+        output.writeShortLE(1)
+        output.writeShortLE(1)
+        output.writeIntLE(24_000)
+        output.writeIntLE(24_000 * 2)
+        output.writeShortLE(2)
+        output.writeShortLE(16)
+        output.write("data".toByteArray(Charsets.US_ASCII))
+        output.writeIntLE(pcmData.size)
+        output.write(pcmData)
+        return output.toByteArray()
+    }
+
+    /** Writes [value] as a little-endian 32-bit integer. */
+    private fun ByteArrayOutputStream.writeIntLE(value: Int) {
+        write(ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(value).array())
+    }
+
+    /** Writes [value] as a little-endian 16-bit integer. */
+    private fun ByteArrayOutputStream.writeShortLE(value: Int) {
+        write(ByteBuffer.allocate(2).order(ByteOrder.LITTLE_ENDIAN).putShort(value.toShort()).array())
+    }
+
+    @Test
+    fun `decodeLinear16AudioContent strips WAV header and returns only PCM payload`() {
+        val pcmData = byteArrayOf(0x34, 0x12, 0x78, 0x56, 0x00, 0x00)
+        val wavData = wavBytes(pcmData)
+
+        val decoded = TTSService.decodeLinear16AudioContent(wavData)
+
+        assertEquals(pcmData.toList(), decoded.toList())
+    }
 
     @Test
     fun `validatePitch accepts boundary and valid in-range values`() {
