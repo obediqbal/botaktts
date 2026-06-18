@@ -12,6 +12,8 @@ import com.google.cloud.texttospeech.v1.TextToSpeechSettings
 import com.google.cloud.texttospeech.v1.Voice
 import com.google.cloud.texttospeech.v1.VoiceSelectionParams
 import org.slf4j.LoggerFactory
+import java.io.ByteArrayInputStream
+import javax.sound.sampled.AudioSystem
 import kotlin.math.min
 
 /**
@@ -56,6 +58,9 @@ class TTSService {
         /**
          * Builds an [AudioConfig] for LINEAR16 audio at the given sample rate.
          *
+         * Google Cloud returns LINEAR16 audio content as a WAV stream, so callers that write to a
+         * raw PCM line must decode the response before playback.
+         *
          * @param speed Speaking rate multiplier.
          * @param pitch Pitch adjustment.
          * @param sampleRateHertz Sample rate in hertz; defaults to [DEFAULT_SAMPLE_RATE].
@@ -73,6 +78,23 @@ class TTSService {
                 .setSpeakingRate(speed)
                 .setSampleRateHertz(sampleRateHertz)
                 .build()
+
+        /**
+         * Decodes a Google LINEAR16 response into raw PCM bytes.
+         *
+         * Google Cloud Text-to-Speech wraps LINEAR16 response audio in a WAV container. The Java
+         * Sound reader consumes that container and exposes only the PCM frame data, preventing the
+         * RIFF/WAVE header bytes from being sent to a [javax.sound.sampled.SourceDataLine].
+         *
+         * @param audioContent the WAV-wrapped LINEAR16 response bytes.
+         * @return the raw PCM payload bytes from the WAV data chunk.
+         * @throws javax.sound.sampled.UnsupportedAudioFileException if [audioContent] is not a
+         *   supported WAV stream.
+         */
+        internal fun decodeLinear16AudioContent(audioContent: ByteArray): ByteArray =
+            AudioSystem.getAudioInputStream(ByteArrayInputStream(audioContent)).use { audioInputStream ->
+                audioInputStream.readBytes()
+            }
 
         /**
          * Returns the subset of [voices] that support the given [languageCode].
@@ -245,8 +267,10 @@ class TTSService {
     /**
      * Synthesizes the given [text] into speech using the selected voice and audio config.
      *
-     * Returns raw LINEAR16 PCM audio bytes. If the selected voice does not support the pitch
-     * parameter, synthesis is retried with a neutral pitch (`0.0`).
+     * Returns raw LINEAR16 PCM audio bytes. Google returns LINEAR16 responses as WAV streams, so
+     * this method decodes the response and strips the WAV container before returning data for
+     * playback. If the selected voice does not support the pitch parameter, synthesis is retried
+     * with a neutral pitch (`0.0`).
      *
      * @param text The text to synthesize.
      * @return the synthesized audio content as a byte array.
@@ -266,7 +290,7 @@ class TTSService {
                 requestBuilder
                     .setAudioConfig(audioConfig)
                     .build()
-            client!!.synthesizeSpeech(request).audioContent.toByteArray()
+            decodeLinear16AudioContent(client!!.synthesizeSpeech(request).audioContent.toByteArray())
         } catch (e: ApiException) {
             if (shouldRetryWithNeutralPitch(e)) {
                 LOGGER.warn(e.message)
@@ -274,7 +298,7 @@ class TTSService {
                     requestBuilder
                         .setAudioConfig(createAudioConfig(speed, 0.0))
                         .build()
-                client!!.synthesizeSpeech(request).audioContent.toByteArray()
+                decodeLinear16AudioContent(client!!.synthesizeSpeech(request).audioContent.toByteArray())
             } else {
                 throw e
             }
