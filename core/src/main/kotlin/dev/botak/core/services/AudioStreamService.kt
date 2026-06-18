@@ -3,6 +3,7 @@ package dev.botak.core.services
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import javax.sound.sampled.AudioFormat
@@ -94,8 +95,10 @@ class AudioStreamService {
      * Writes [audioData] to [sourceLine] in fixed-size chunks, applying the current
      * [volumeFactor] to each chunk and yielding to coroutine cancellation between writes.
      *
-     * The line is drained, stopped and closed in a `finally` block so resources are released even
-     * if the coroutine is cancelled.
+     * The line is stopped and closed in a `finally` block so resources are released even if the
+     * coroutine is cancelled. On normal completion the line is drained so all buffered audio
+     * finishes playing; on cancellation the buffer is flushed so playback stops promptly instead
+     * of continuing until the Java Sound buffer empties.
      *
      * @param sourceLine The open line to write to.
      * @param audioData The PCM audio bytes to play.
@@ -124,7 +127,13 @@ class AudioStreamService {
                 ensureActive()
             }
         } finally {
-            sourceLine.drain()
+            if (coroutineContext.isActive) {
+                // Normal completion: wait for queued audio to finish playing.
+                sourceLine.drain()
+            } else {
+                // Cancelled: discard buffered audio so playback stops promptly.
+                sourceLine.flush()
+            }
             sourceLine.stop()
             sourceLine.close()
             LOGGER.debug("Completed streaming audio data $logMessage")
