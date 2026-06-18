@@ -32,8 +32,14 @@ private val LOGGER = LoggerFactory.getLogger("MainInteractive")
  * Interactive CLI entry point for the core module.
  *
  * Reads a line-delimited protocol from standard input: each request consists of a command name
- * followed by an argument line. Synthesis is performed on a background coroutine and can be
- * cancelled with [Command.STOP]. The loop runs until the input stream is closed.
+ * followed by an argument line. Both synthesis and playback are performed on a single tracked
+ * background coroutine launched on [Dispatchers.IO], so the command loop stays responsive while a
+ * synthesis request is in flight. [Command.STOP] cancels and joins that job.
+ *
+ * Cancellation caveat: the Google Cloud TTS client call is a blocking gRPC request that does not
+ * cooperate with coroutine cancellation while in flight. Cancelling the job will not abort the
+ * network call itself, but the cancelled coroutine skips playback once the call returns, so STOP
+ * prevents any audio from being written after a synthesis in progress.
  */
 fun main() =
     runBlocking {
@@ -47,10 +53,17 @@ fun main() =
             when (command) {
                 Command.SYNTH.name -> {
                     println("Command SYNTH received")
-                    val speech = ttsService.synthesizeSpeech(input)
-                    println("synthesized speech")
+                    // Synthesis and playback run together inside the tracked job so the command
+                    // loop stays free to read a subsequent STOP. The Google TTS client call is a
+                    // blocking gRPC request that does not cooperate with coroutine cancellation
+                    // while in flight; cancelling the job will not abort the network call itself,
+                    // but once it returns the cancelled coroutine skips playback before any audio
+                    // is written. STOP therefore interrupts synthesis at the first cancellation
+                    // point (between the API call returning and streaming starting).
                     job =
                         launch(Dispatchers.IO) {
+                            val speech = ttsService.synthesizeSpeech(input)
+                            println("synthesized speech")
                             audioStreamService.streamToVirtualAudio(speech, ttsService.sampleRateHz.toFloat())
                         }
                 }
