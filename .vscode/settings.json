@@ -1,0 +1,42 @@
+{
+  // ---- Kotlin (fwcd.kotlin) ----
+  "kotlin.languageServer.enabled": true,
+  "kotlin.languageServer.path": "",
+  "kotlin.compiler.enabled": true,
+  "kotlin.linting.enabled": true,
+  "kotlin.format.enabled": true,
+  // Use the project's own ktlint config for lint/format
+  "kotlin.lsp.enabled": true,
+  "kotlin.trace.server": "off",
+
+  // ---- Gradle (vscode-gradle) ----
+  "java.import.gradle.enabled": true,
+  "java.import.gradle.wrapper.enabled": true,
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-17",
+      "path": "C:\\Users\\obedu\\.jdks\\corretto-17.0.12",
+      "default": true
+    }
+  ],
+
+  // ---- Editor ----
+  "files.encoding": "utf8",
+  "[kotlin]": {
+    "editor.defaultFormatter": "fwcd.kotlin",
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "never"
+    }
+  },
+  "files.exclude": {
+    "**/.gradle": true,
+    "**/build": false,
+    "**/.kotlin": true
+  },
+  "search.exclude": {
+    "**/build/**": true,
+    "**/.gradle/**": true
+  },
+  "java.compile.nullAnalysis.mode": "automatic"
+}
