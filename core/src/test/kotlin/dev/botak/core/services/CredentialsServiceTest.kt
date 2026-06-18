@@ -73,12 +73,39 @@ class CredentialsServiceTest {
     }
 
     /**
-     * A token whose expiration time lies in the future is not expired.
+     * A token whose expiration time lies well beyond the safety margin is not expired.
      */
     @Test
     fun `isTokenExpired returns false when expiration time is in the future`() {
         val future = Date.from(Instant.now().plusSeconds(3600))
         val service = CredentialsService(AccessToken("token", future))
+        assertFalse(service.isTokenExpired())
+    }
+
+    /**
+     * A token whose expiration lies within [CredentialsService.TOKEN_SAFETY_MARGIN_MS] is treated
+     * as expired even though its true expiration is still in the future, so it is refreshed before
+     * use instead of lapsing during an in-flight request.
+     */
+    @Test
+    fun `isTokenExpired returns true when expiration is within the safety margin`() {
+        val withinMargin = Date.from(
+            Instant.now().plusMillis(CredentialsService.TOKEN_SAFETY_MARGIN_MS - 60_000),
+        )
+        val service = CredentialsService(AccessToken("token", withinMargin))
+        assertTrue(service.isTokenExpired())
+    }
+
+    /**
+     * A token whose expiration lies just beyond [CredentialsService.TOKEN_SAFETY_MARGIN_MS] is
+     * still active.
+     */
+    @Test
+    fun `isTokenExpired returns false when expiration is beyond the safety margin`() {
+        val beyondMargin = Date.from(
+            Instant.now().plusMillis(CredentialsService.TOKEN_SAFETY_MARGIN_MS + 60_000),
+        )
+        val service = CredentialsService(AccessToken("token", beyondMargin))
         assertFalse(service.isTokenExpired())
     }
 
@@ -96,7 +123,7 @@ class CredentialsServiceTest {
     }
 
     /**
-     * A future-dated token is reported as a valid credential.
+     * A token whose expiration time lies well beyond the safety margin is still valid.
      */
     @Test
     fun `isCredentialsValid returns true for future-dated token`() {
