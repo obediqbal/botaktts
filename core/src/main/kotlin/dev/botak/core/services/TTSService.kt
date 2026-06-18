@@ -28,6 +28,98 @@ class TTSService {
         private val LOGGER = LoggerFactory.getLogger(TTSService::class.java)
         private val USER_SETTINGS = ConfigService.userSettings
         private val DEFAULT_SAMPLE_RATE = ConfigService.getInt("defaults.sampleRate")
+
+        /**
+         * Validates that [value] is within the supported pitch range.
+         *
+         * @param value the pitch to validate.
+         * @throws IllegalArgumentException if [value] is outside `-20.0..20.0` or not a finite number.
+         */
+        internal fun validatePitch(value: Double) {
+            require(value in -20.0..20.0) {
+                "Pitch must be between -20.0 and 20.0"
+            }
+        }
+
+        /**
+         * Validates that [value] is within the supported speaking-rate range.
+         *
+         * @param value the speed to validate.
+         * @throws IllegalArgumentException if [value] is outside `0.25..4.0` or not a finite number.
+         */
+        internal fun validateSpeed(value: Double) {
+            require(value in 0.25..4.0) {
+                "Speed must be between 0.25 and 4.0"
+            }
+        }
+
+        /**
+         * Builds an [AudioConfig] for LINEAR16 audio at the given sample rate.
+         *
+         * @param speed Speaking rate multiplier.
+         * @param pitch Pitch adjustment.
+         * @param sampleRateHertz Sample rate in hertz; defaults to [DEFAULT_SAMPLE_RATE].
+         * @return the constructed [AudioConfig].
+         */
+        internal fun buildAudioConfig(
+            speed: Double,
+            pitch: Double,
+            sampleRateHertz: Int = DEFAULT_SAMPLE_RATE,
+        ): AudioConfig =
+            AudioConfig
+                .newBuilder()
+                .setAudioEncoding(AudioEncoding.LINEAR16)
+                .setPitch(pitch)
+                .setSpeakingRate(speed)
+                .setSampleRateHertz(sampleRateHertz)
+                .build()
+
+        /**
+         * Returns the subset of [voices] that support the given [languageCode].
+         *
+         * @param voices the full list of available [Voice]s.
+         * @param languageCode the BCP-47 language code to match against each voice's language codes.
+         * @return the voices whose language codes contain [languageCode].
+         */
+        internal fun filterVoicesByLanguage(
+            voices: List<Voice>,
+            languageCode: String,
+        ): List<Voice> = voices.filter { it.languageCodesList.contains(languageCode) }
+
+        /**
+         * Returns the distinct set of BCP-47 language codes supported by [voices].
+         *
+         * @param voices the full list of available [Voice]s.
+         * @return a deduplicated list of language codes.
+         */
+        internal fun distinctLanguageCodes(voices: List<Voice>): List<String> =
+            voices
+                .map { it.languageCodesList }
+                .flatten()
+                .distinct()
+
+        /**
+         * Finds the first voice in [voices] whose name equals [name].
+         *
+         * @param voices the list of [Voice]s to search.
+         * @param name the voice name to match.
+         * @return the first matching [Voice], or `null` when none match.
+         */
+        internal fun findVoiceByName(
+            voices: List<Voice>,
+            name: String,
+        ): Voice? = voices.firstOrNull { it.name == name }
+
+        /**
+         * Determines whether an [ApiException] indicates the selected voice does not support pitch
+         * parameters, in which case synthesis should be retried with a neutral pitch.
+         *
+         * @param e the exception raised by the synthesize call.
+         * @return `true` when the error is the specific unsupported-pitch `INVALID_ARGUMENT` failure.
+         */
+        internal fun shouldRetryWithNeutralPitch(e: ApiException): Boolean =
+            e.statusCode.code == StatusCode.Code.INVALID_ARGUMENT &&
+                e.message == "io.grpc.StatusRuntimeException: INVALID_ARGUMENT: This voice does not support pitch parameters at this time."
     }
 
     private val credentialsService = CredentialsService()
@@ -58,9 +150,7 @@ class TTSService {
      */
     var pitch: Double = USER_SETTINGS.pitch
         set(value) {
-            require(value in -20.0..20.0) {
-                "Pitch must be between -20.0 and 20.0"
-            }
+            validatePitch(value)
             updateAudioConfig(newPitch = value)
             field = value
             USER_SETTINGS.pitch = value
@@ -73,9 +163,7 @@ class TTSService {
      */
     var speed: Double = USER_SETTINGS.speed
         set(value) {
-            require(value in 0.25..4.0) {
-                "Speed must be between 0.25 and 4.0"
-            }
+            validateSpeed(value)
             updateAudioConfig(newSpeed = value)
             field = value
             USER_SETTINGS.speed = value
@@ -115,11 +203,7 @@ class TTSService {
      *
      * @return a deduplicated list of language codes.
      */
-    fun getLanguages(): List<String> =
-        getAllVoices()
-            .map { it.languageCodesList }
-            .flatten()
-            .distinct()
+    fun getLanguages(): List<String> = distinctLanguageCodes(getAllVoices())
 
     /**
      * Selects the voice to use for synthesis.
@@ -137,7 +221,7 @@ class TTSService {
     ) {
         LOGGER.debug("Attempting to select voice for language=$languageCode, voiceName=$voiceName")
         val listVoices = fetchListVoices(languageCode)
-        val voice = listVoices.firstOrNull { it.name == voiceName }
+        val voice = findVoiceByName(listVoices, voiceName)
         require(voice != null) { "Can't find $voiceName in $languageCode" }
 
         voiceSelectionParams =
@@ -184,19 +268,15 @@ class TTSService {
                     .build()
             client!!.synthesizeSpeech(request).audioContent.toByteArray()
         } catch (e: ApiException) {
-            if (e.statusCode.code != StatusCode.Code.INVALID_ARGUMENT) {
+            if (shouldRetryWithNeutralPitch(e)) {
+                LOGGER.warn(e.message)
+                val request =
+                    requestBuilder
+                        .setAudioConfig(createAudioConfig(speed, 0.0))
+                        .build()
+                client!!.synthesizeSpeech(request).audioContent.toByteArray()
+            } else {
                 throw e
-            }
-            when (e.message) {
-                "io.grpc.StatusRuntimeException: INVALID_ARGUMENT: This voice does not support pitch parameters at this time." -> {
-                    LOGGER.warn(e.message)
-                    val request =
-                        requestBuilder
-                            .setAudioConfig(createAudioConfig(speed, 0.0))
-                            .build()
-                    client!!.synthesizeSpeech(request).audioContent.toByteArray()
-                }
-                else -> throw e
             }
         } finally {
             LOGGER.info("Synthesized speech for text=${text.take(min(15, text.length))}")
@@ -235,14 +315,7 @@ class TTSService {
     private fun createAudioConfig(
         speed: Double,
         pitch: Double,
-    ): AudioConfig =
-        AudioConfig
-            .newBuilder()
-            .setAudioEncoding(AudioEncoding.LINEAR16)
-            .setPitch(pitch)
-            .setSpeakingRate(speed)
-            .setSampleRateHertz(DEFAULT_SAMPLE_RATE)
-            .build()
+    ): AudioConfig = buildAudioConfig(speed, pitch, DEFAULT_SAMPLE_RATE)
 
     /**
      * Returns the voices that support the given [languageCode], filtered from the cached voice list.
@@ -251,9 +324,7 @@ class TTSService {
      * @return the list of matching [Voice]s.
      */
     fun fetchListVoices(languageCode: String = USER_SETTINGS.languageCode): List<Voice> =
-        getAllVoices().filter {
-            it.languageCodesList.contains(languageCode)
-        }
+        filterVoicesByLanguage(getAllVoices(), languageCode)
 }
 
 fun main() {

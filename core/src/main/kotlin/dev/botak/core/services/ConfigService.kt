@@ -42,7 +42,14 @@ object ConfigService {
         }
         appDataPath
     }
-    private val settingsFile = File(appDataDir, "settings.json")
+
+    /**
+     * The JSON file that stores persisted user settings.
+     *
+     * Visibility is `internal var` so unit tests can redirect this to a temporary file
+     * without touching the real production settings. Production code never reassigns it.
+     */
+    internal var settingsFile = File(appDataDir, "settings.json")
 
     /** The loaded Typesafe (HOCON) reference configuration from `application.conf`. */
     val config = ConfigFactory.load()
@@ -71,10 +78,12 @@ object ConfigService {
      * Loads the user settings from the settings file, falling back to the defaults defined in
      * `application.conf` when the file is missing or cannot be parsed.
      *
+     * Visibility is `internal` so unit tests can exercise the load path directly.
+     *
      * @return the loaded [UserSettings], or a default instance on any failure.
      */
-    // Load user settings from file or return defaults
-    private fun loadUserSettings(): UserSettings =
+    // Load user settings from file or return defaults.
+    internal fun loadUserSettings(): UserSettings =
         try {
             if (settingsFile.exists()) {
                 val settings = objectMapper.readValue(settingsFile, UserSettings::class.java)

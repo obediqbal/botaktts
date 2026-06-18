@@ -54,7 +54,7 @@ class AudioStreamService {
      * @param channels Number of audio channels (1 for mono, 2 for stereo).
      * @return the configured [AudioFormat].
      */
-    private fun createAudioFormat(
+    internal fun createAudioFormat(
         sampleRate: Float,
         channels: Int,
     ): AudioFormat =
@@ -166,10 +166,13 @@ class AudioStreamService {
      * Applies a linear [gain] to [audioData] in place by decoding each 16-bit little-endian
      * sample, scaling it, clamping to the signed 16-bit range, and re-encoding it.
      *
+     * Marked `internal` so unit tests can exercise the DSP logic directly without going through
+     * the Java Sound line machinery. Behavior is unchanged.
+     *
      * @param audioData The PCM byte buffer to mutate; length must be even.
      * @param gain The linear gain factor to apply.
      */
-    private fun applyGain(
+    internal fun applyGain(
         audioData: ByteArray,
         gain: Float,
     ) {

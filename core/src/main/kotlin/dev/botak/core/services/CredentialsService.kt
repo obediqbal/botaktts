@@ -53,9 +53,12 @@ class CredentialsService(
      *
      * A token with no [AccessToken.expirationTime] is treated as expired.
      *
+     * Visibility is `internal` so unit tests can exercise the expiry logic directly without
+     * having to drive a full HTTP refresh. Production callers treat this as private.
+     *
      * @return `true` if the token is expired or has no expiration time.
      */
-    private fun isTokenExpired(): Boolean {
+    internal fun isTokenExpired(): Boolean {
         val isExpired = accessToken.expirationTime?.before(Date()) ?: true
         LOGGER.debug("Access token is ${if (isExpired) "expired" else "active"}")
         return isExpired
@@ -67,10 +70,14 @@ class CredentialsService(
      * The endpoint is expected to return a JSON body containing the token string and an
      * expiration timestamp (in seconds since the epoch).
      *
+     * Visibility is `internal` so unit tests can invoke the HTTP path directly against an
+     * OkHttp `MockWebServer` without exercising the caching layer. Production callers treat
+     * this as private.
+     *
      * @return a freshly issued [AccessToken] with its expiration time.
      * @throws RuntimeException if the request fails or the response body is empty/invalid.
      */
-    private fun fetchAccessToken(): AccessToken {
+    internal fun fetchAccessToken(): AccessToken {
         data class TokenBody(
             val accessToken: String,
             val expirationTimestamp: Long,
