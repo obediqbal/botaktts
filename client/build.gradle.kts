@@ -18,6 +18,10 @@ repositories {
 dependencies {
     implementation(project(":core"))
 
+    // okhttp is transitive from :core at runtime but not on client's compile classpath.
+    // Pin the same version as :core to avoid drift. Adds no new runtime artifact.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
 // https://mvnrepository.com/artifact/com.1stleg/jnativehook
     implementation("com.1stleg:jnativehook:2.1.0")
     implementation("net.java.dev.jna:jna:5.13.0")
