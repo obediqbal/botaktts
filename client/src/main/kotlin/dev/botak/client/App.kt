@@ -1,12 +1,26 @@
 package dev.botak.client
 
 import androidx.compose.runtime.*
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.window.application
+import dev.botak.client.update.UpdateInstaller
 import dev.botak.client.windows.AppMainWindow
 import dev.botak.client.windows.SystemTrays
+import dev.botak.client.windows.UpdateUiState
+import dev.botak.client.windows.UpdateWindow
 import dev.botak.core.services.AudioStreamService
 import dev.botak.core.services.TTSService
+import dev.botak.core.update.GitHubReleaseClient
+import dev.botak.core.update.UpdateCheckResult
+import dev.botak.core.update.UpdateService
+import dev.botak.core.update.VersionProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.slf4j.LoggerFactory
+import java.awt.Desktop
+import java.net.URI
+
+/** Logger for the application bootstrap. */
+private val LOGGER = LoggerFactory.getLogger("dev.botak.client.App")
 
 /** Shared TTS service instance, lazily created on first use. */
 private val ttsService by lazy { TTSService() }
@@ -14,16 +28,25 @@ private val ttsService by lazy { TTSService() }
 /** Shared audio stream service instance, lazily created on first use. */
 private val audioStreamService by lazy { AudioStreamService() }
 
+/** Update orchestration service (core logic). */
+private val updateService by lazy { UpdateService(VersionProvider(), GitHubReleaseClient()) }
+
+/** Installer that downloads and launches the update (client side effects). */
+private val updateInstaller by lazy { UpdateInstaller() }
+
 /**
  * Launches the Compose Desktop application.
  *
- * Composes the main input window ([AppMainWindow]) and the system tray ([SystemTrays]), wiring
- * the tray's enable/disable toggles to the [isAppEnabled] state that controls window visibility.
- * The shared [ttsService] and [audioStreamService] instances are reused by both.
+ * Composes the main input window ([AppMainWindow]), the system tray ([SystemTrays]) and the
+ * update dialog ([UpdateWindow]), wiring the tray's enable/disable toggles to [isAppEnabled] and
+ * the tray's "Check for updates…" item to the update flow. The shared services are reused across
+ * windows.
  */
 fun start() =
     application {
         var isAppEnabled by remember { mutableStateOf(true) }
+        var updateState by remember { mutableStateOf<UpdateUiState>(UpdateUiState.Hidden) }
+        val scope = rememberCoroutineScope()
 
         AppMainWindow(
             ttsService = ttsService,
@@ -36,7 +59,61 @@ fun start() =
             exitApplication = ::exitApplication,
             onAppEnabled = { isAppEnabled = true },
             onAppDisabled = { isAppEnabled = false },
+            onCheckForUpdates = {
+                updateState = UpdateUiState.Checking
+                scope.launch(Dispatchers.IO) {
+                    updateState =
+                        when (val result = updateService.checkForUpdate()) {
+                            is UpdateCheckResult.UpToDate ->
+                                UpdateUiState.UpToDate(result.current.toString())
+                            is UpdateCheckResult.UpdateAvailable ->
+                                UpdateUiState.Available(
+                                    latest = result.latest.toString(),
+                                    changelog = result.changelog,
+                                    setupAssetUrl = result.setupAssetUrl,
+                                    htmlUrl = result.htmlUrl,
+                                )
+                            is UpdateCheckResult.Failed -> {
+                                LOGGER.warn(result.reason, result.cause)
+                                UpdateUiState.Error("Couldn't check for updates.")
+                            }
+                        }
+                }
+            },
             ttsService = ttsService,
             audioStreamService = audioStreamService,
+        )
+
+        UpdateWindow(
+            state = updateState,
+            onClose = { updateState = UpdateUiState.Hidden },
+            onUpdate = { setupAssetUrl ->
+                updateState = UpdateUiState.Downloading(null)
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        updateInstaller.downloadAndRun(
+                            setupAssetUrl = setupAssetUrl,
+                            onProgress = { downloaded, total ->
+                                updateState =
+                                    UpdateUiState.Downloading(
+                                        if (total > 0) downloaded.toFloat() / total else null,
+                                    )
+                            },
+                            onReadyToExit = { exitApplication() },
+                        )
+                    } catch (e: Exception) {
+                        LOGGER.warn("Update download failed", e)
+                        updateState = UpdateUiState.Error("Couldn't download the update.")
+                    }
+                }
+            },
+            onOpenReleasePage = { htmlUrl ->
+                try {
+                    Desktop.getDesktop().browse(URI(htmlUrl))
+                } catch (e: Exception) {
+                    LOGGER.warn("Failed to open release page", e)
+                }
+                updateState = UpdateUiState.Hidden
+            },
         )
     }
