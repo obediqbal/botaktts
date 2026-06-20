@@ -8,6 +8,7 @@ plugins {
 
 allprojects {
     group = "dev.botak"
+    version = providers.gradleProperty("version").getOrElse("0.0.0")
 
     repositories {
         mavenCentral()
