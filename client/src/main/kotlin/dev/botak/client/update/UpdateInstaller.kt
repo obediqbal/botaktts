@@ -40,6 +40,8 @@ class UpdateInstaller(
         onReadyToExit: () -> Unit,
     ) = withContext(Dispatchers.IO) {
         val dir = File(System.getProperty("java.io.tmpdir"), "BotakTTS-update")
+        // Clear stale partial/old downloads so each update starts from a clean directory.
+        if (dir.exists()) dir.deleteRecursively()
         dir.mkdirs()
         val fileName = setupAssetUrl.substringAfterLast('/').ifBlank { "BotakTTS-Setup.exe" }
         val target = File(dir, fileName)

@@ -60,24 +60,26 @@ fun start() =
             onAppEnabled = { isAppEnabled = true },
             onAppDisabled = { isAppEnabled = false },
             onCheckForUpdates = {
-                updateState = UpdateUiState.Checking
-                scope.launch(Dispatchers.IO) {
-                    updateState =
-                        when (val result = updateService.checkForUpdate()) {
-                            is UpdateCheckResult.UpToDate ->
-                                UpdateUiState.UpToDate(result.current.toString())
-                            is UpdateCheckResult.UpdateAvailable ->
-                                UpdateUiState.Available(
-                                    latest = result.latest.toString(),
-                                    changelog = result.changelog,
-                                    setupAssetUrl = result.setupAssetUrl,
-                                    htmlUrl = result.htmlUrl,
-                                )
-                            is UpdateCheckResult.Failed -> {
-                                LOGGER.warn(result.reason, result.cause)
-                                UpdateUiState.Error("Couldn't check for updates.")
+                if (updateState !is UpdateUiState.Checking && updateState !is UpdateUiState.Downloading) {
+                    updateState = UpdateUiState.Checking
+                    scope.launch(Dispatchers.IO) {
+                        updateState =
+                            when (val result = updateService.checkForUpdate()) {
+                                is UpdateCheckResult.UpToDate ->
+                                    UpdateUiState.UpToDate(result.current.toString())
+                                is UpdateCheckResult.UpdateAvailable ->
+                                    UpdateUiState.Available(
+                                        latest = result.latest.toString(),
+                                        changelog = result.changelog,
+                                        setupAssetUrl = result.setupAssetUrl,
+                                        htmlUrl = result.htmlUrl,
+                                    )
+                                is UpdateCheckResult.Failed -> {
+                                    LOGGER.warn(result.reason, result.cause)
+                                    UpdateUiState.Error("Couldn't check for updates.")
+                                }
                             }
-                        }
+                    }
                 }
             },
             ttsService = ttsService,
