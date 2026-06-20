@@ -43,7 +43,14 @@ RequestExecutionLevel admin
 ;--------------------------------
 Section "Install"
     SetOutPath "$INSTDIR"
-    
+
+    ; In a silent update the old app may still hold its .exe open. Give it a moment to exit
+    ; before overwriting files. NOTE: this is a fixed timer, not a wait-for-unlock — if the old
+    ; process has not released the .exe within the window, File /r fails and NSIS falls back to
+    ; reboot-required. This is the most likely source of intermittent "update needs a reboot".
+    IfSilent 0 +2
+    Sleep 1500
+
     ; Copy all application files
     File /r "${APP_DIR}\*.*"
     
@@ -69,6 +76,12 @@ Section "Install"
     
     ; Create Desktop shortcut
     CreateShortcut "$DESKTOP\BotakTTS.lnk" "$INSTDIR\BotakTTSClient.exe"
+
+    ; In a silent update, relaunch the app de-elevated so it does not inherit the installer's
+    ; admin rights. explorer.exe runs at the logged-in user's medium integrity, so the launched
+    ; app starts without elevation. Needs no NSIS plugin (no CI change).
+    IfSilent 0 +2
+    Exec '"$WINDIR\explorer.exe" "$INSTDIR\BotakTTSClient.exe"'
 SectionEnd
 
 ;--------------------------------
