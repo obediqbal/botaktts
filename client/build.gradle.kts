@@ -1,4 +1,5 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import java.io.File
 
 plugins {
     id("org.jetbrains.compose") version "1.8.0"
@@ -43,6 +44,27 @@ compose.desktop {
             }
         }
     }
+}
+
+// Bundle the project version into a runtime resource read by VersionProvider (core).
+val generateVersionProperties by tasks.registering {
+    val outputDir = layout.buildDirectory.dir("generated/version")
+    val versionValue = project.version.toString()
+    inputs.property("version", versionValue)
+    outputs.dir(outputDir)
+    doLast {
+        val dir = outputDir.get().asFile
+        dir.mkdirs()
+        File(dir, "version.properties").writeText("version=$versionValue\n")
+    }
+}
+
+sourceSets.main {
+    resources.srcDir(layout.buildDirectory.dir("generated/version"))
+}
+
+tasks.named("processResources") {
+    dependsOn(generateVersionProperties)
 }
 
 tasks.test {
