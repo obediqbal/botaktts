@@ -115,7 +115,11 @@ fun start() =
                                         )
                                 }
                             },
-                            onReadyToExit = { exitApplication() },
+                            onReadyToExit = {
+                                scope.launch(Dispatchers.Main) {
+                                    exitApplication()
+                                }
+                            },
                         )
                     } catch (e: CancellationException) {
                         // User cancelled via onClose; propagate cancellation, don't set Error state

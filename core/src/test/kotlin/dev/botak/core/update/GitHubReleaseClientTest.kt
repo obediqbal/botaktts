@@ -12,7 +12,7 @@ import kotlin.test.assertNull
  * Unit tests for [GitHubReleaseClient].
  *
  * Each test boots its own [MockWebServer] inline and shuts it down in a `finally` block, matching
- * the project convention (kotlin-test JUnit4 binding, no `@BeforeEach`/`@AfterEach`).
+ * the project convention (kotlin-test with JUnit Platform, no `@BeforeEach`/`@AfterEach`).
  */
 class GitHubReleaseClientTest {
     private fun withServer(block: (MockWebServer) -> Unit) {
@@ -102,6 +102,26 @@ class GitHubReleaseClientTest {
                 ),
             )
             assertFailsWith<RuntimeException> { clientFor(server).fetchLatest() }
+        }
+    }
+
+    @Test
+    fun `fetchLatest throws when html_url is missing`() {
+        withServer { server ->
+            server.enqueue(
+                MockResponse().setBody(
+                    """
+                    {
+                      "tag_name": "v1.2.0",
+                      "body": "Release notes",
+                      "assets": [
+                        {"name": "BotakTTS-1.2.0-Setup.exe", "browser_download_url": "https://example/setup"}
+                      ]
+                    }
+                    """.trimIndent(),
+                ),
+            )
+            assertFailsWith<IllegalStateException> { clientFor(server).fetchLatest() }
         }
     }
 }
