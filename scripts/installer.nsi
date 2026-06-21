@@ -44,12 +44,25 @@ RequestExecutionLevel admin
 Section "Install"
     SetOutPath "$INSTDIR"
 
-    ; In a silent update the old app may still hold its .exe open. Give it a moment to exit
-    ; before overwriting files. NOTE: this is a fixed timer, not a wait-for-unlock — if the old
-    ; process has not released the .exe within the window, File /r fails and NSIS falls back to
-    ; reboot-required. This is the most likely source of intermittent "update needs a reboot".
-    IfSilent 0 +2
-    Sleep 1500
+    ; In a silent update the old app may still hold its .exe open. Wait for it to release the
+    ; lock before overwriting files (up to 10s). If the file remains locked, File /r fails and
+    ; NSIS falls back to reboot-required.
+    IfSilent 0 skip_wait
+    StrCpy $1 0
+    retry_loop:
+        ClearErrors
+        FileOpen $0 "$INSTDIR\BotakTTSClient.exe" a
+        IfErrors still_locked file_unlocked
+    still_locked:
+        Sleep 500
+        IntOp $1 $1 + 1
+        IntCmp $1 20 give_up give_up retry_loop
+    give_up:
+        ; Proceed anyway; File /r will trigger reboot-required if still locked
+        Goto skip_wait
+    file_unlocked:
+        FileClose $0
+    skip_wait:
 
     ; Copy all application files
     File /r "${APP_DIR}\*.*"

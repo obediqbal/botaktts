@@ -13,8 +13,11 @@ import dev.botak.core.update.GitHubReleaseClient
 import dev.botak.core.update.UpdateCheckResult
 import dev.botak.core.update.UpdateService
 import dev.botak.core.update.VersionProvider
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.awt.Desktop
 import java.net.URI
@@ -47,6 +50,7 @@ fun start() =
         var isAppEnabled by remember { mutableStateOf(true) }
         var updateState by remember { mutableStateOf<UpdateUiState>(UpdateUiState.Hidden) }
         val scope = rememberCoroutineScope()
+        var updateJob by remember { mutableStateOf<Job?>(null) }
 
         AppMainWindow(
             ttsService = ttsService,
@@ -61,24 +65,28 @@ fun start() =
             onAppDisabled = { isAppEnabled = false },
             onCheckForUpdates = {
                 if (updateState !is UpdateUiState.Checking && updateState !is UpdateUiState.Downloading) {
+                    updateJob?.cancel()
                     updateState = UpdateUiState.Checking
-                    scope.launch(Dispatchers.IO) {
-                        updateState =
-                            when (val result = updateService.checkForUpdate()) {
-                                is UpdateCheckResult.UpToDate ->
-                                    UpdateUiState.UpToDate(result.current.toString())
-                                is UpdateCheckResult.UpdateAvailable ->
-                                    UpdateUiState.Available(
-                                        latest = result.latest.toString(),
-                                        changelog = result.changelog,
-                                        setupAssetUrl = result.setupAssetUrl,
-                                        htmlUrl = result.htmlUrl,
-                                    )
-                                is UpdateCheckResult.Failed -> {
-                                    LOGGER.warn(result.reason, result.cause)
-                                    UpdateUiState.Error("Couldn't check for updates.")
+                    updateJob = scope.launch(Dispatchers.IO) {
+                        val result = updateService.checkForUpdate()
+                        withContext(Dispatchers.Main) {
+                            updateState =
+                                when (result) {
+                                    is UpdateCheckResult.UpToDate ->
+                                        UpdateUiState.UpToDate(result.current.toString())
+                                    is UpdateCheckResult.UpdateAvailable ->
+                                        UpdateUiState.Available(
+                                            latest = result.latest.toString(),
+                                            changelog = result.changelog,
+                                            setupAssetUrl = result.setupAssetUrl,
+                                            htmlUrl = result.htmlUrl,
+                                        )
+                                    is UpdateCheckResult.Failed -> {
+                                        LOGGER.warn(result.reason, result.cause)
+                                        UpdateUiState.Error("Couldn't check for updates.")
+                                    }
                                 }
-                            }
+                        }
                     }
                 }
             },
@@ -88,24 +96,35 @@ fun start() =
 
         UpdateWindow(
             state = updateState,
-            onClose = { updateState = UpdateUiState.Hidden },
+            onClose = {
+                updateJob?.cancel()
+                updateState = UpdateUiState.Hidden
+            },
             onUpdate = { setupAssetUrl ->
+                updateJob?.cancel()
                 updateState = UpdateUiState.Downloading(null)
-                scope.launch(Dispatchers.IO) {
+                updateJob = scope.launch(Dispatchers.IO) {
                     try {
                         updateInstaller.downloadAndRun(
                             setupAssetUrl = setupAssetUrl,
                             onProgress = { downloaded, total ->
-                                updateState =
-                                    UpdateUiState.Downloading(
-                                        if (total > 0) downloaded.toFloat() / total else null,
-                                    )
+                                scope.launch(Dispatchers.Main) {
+                                    updateState =
+                                        UpdateUiState.Downloading(
+                                            if (total > 0) downloaded.toFloat() / total else null,
+                                        )
+                                }
                             },
                             onReadyToExit = { exitApplication() },
                         )
+                    } catch (e: CancellationException) {
+                        // User cancelled via onClose; propagate cancellation, don't set Error state
+                        throw e
                     } catch (e: Exception) {
                         LOGGER.warn("Update download failed", e)
-                        updateState = UpdateUiState.Error("Couldn't download the update.")
+                        withContext(Dispatchers.Main) {
+                            updateState = UpdateUiState.Error("Couldn't download the update.")
+                        }
                     }
                 }
             },
