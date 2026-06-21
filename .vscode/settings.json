@@ -5,6 +5,7 @@
   "kotlin.compiler.enabled": true,
   "kotlin.linting.enabled": true,
   "kotlin.format.enabled": true,
+  "kotlin.compiler.jvm.target": "17",
   // Use the project's own ktlint config for lint/format
   "kotlin.lsp.enabled": true,
   "kotlin.trace.server": "off",
@@ -38,5 +39,6 @@
     "**/build/**": true,
     "**/.gradle/**": true
   },
-  "java.compile.nullAnalysis.mode": "automatic"
+  "java.compile.nullAnalysis.mode": "automatic",
+  "java.configuration.updateBuildConfiguration": "automatic"
 }
