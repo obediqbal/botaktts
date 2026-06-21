@@ -8,8 +8,8 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -268,6 +268,7 @@ class ConfigServiceTest {
 
         // the on-disk JSON should be valid and contain the expected field values
         val rawJson = file.readText()
+
         @Suppress("UNCHECKED_CAST")
         val parsed: Map<String, Any?> = objectMapper.readValue(rawJson, Map::class.java) as Map<String, Any?>
         assertEquals(expected.languageCode, parsed["languageCode"])

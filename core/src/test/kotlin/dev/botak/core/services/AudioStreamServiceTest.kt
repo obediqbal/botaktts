@@ -310,18 +310,19 @@ class AudioStreamServiceTest {
      * runs inside `runTest` so the suspend call resolves synchronously.
      */
     @Test
-    fun `streamToVirtualAudio throws when no mixer matches`() = runTest {
-        mockkStatic(AudioSystem::class)
-        every { AudioSystem.getMixerInfo() } returns emptyArray()
+    fun `streamToVirtualAudio throws when no mixer matches`() =
+        runTest {
+            mockkStatic(AudioSystem::class)
+            every { AudioSystem.getMixerInfo() } returns emptyArray()
 
-        val exception =
-            assertFailsWith<IllegalStateException> {
-                service.streamToVirtualAudio(ByteArray(0), 24000f)
-            }
-        assertEquals("Virtual Audio not found", exception.message)
+            val exception =
+                assertFailsWith<IllegalStateException> {
+                    service.streamToVirtualAudio(ByteArray(0), 24000f)
+                }
+            assertEquals("Virtual Audio not found", exception.message)
 
-        unmockkStatic(AudioSystem::class)
-    }
+            unmockkStatic(AudioSystem::class)
+        }
 
     // ---------- streamAudio resource cleanup (intentionally not covered) ----------
     //
