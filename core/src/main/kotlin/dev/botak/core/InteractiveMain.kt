@@ -8,8 +8,6 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
-import java.util.Locale
-import java.util.Locale.getDefault
 
 /**
  * The commands supported by the interactive CLI protocol used by [main].

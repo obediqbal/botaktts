@@ -160,12 +160,15 @@ class TTSService {
             }
             return field
         }
+
     /** The BCP-47 language code of the currently selected voice. */
     var languageCode: String = USER_SETTINGS.languageCode
         private set
+
     /** The name of the currently selected Google Cloud TTS voice. */
     var voiceName: String = USER_SETTINGS.voiceName
         private set
+
     /**
      * Voice pitch. Must be in the range `-20.0..20.0`. Assigning a new value updates the audio
      * config, persists the setting, and logs the change.
@@ -179,6 +182,7 @@ class TTSService {
             ConfigService.saveUserSettings()
             LOGGER.info("Set pitch to $field")
         }
+
     /**
      * Speaking rate multiplier. Must be in the range `0.25..4.0` (`1.0` is normal speed).
      * Assigning a new value updates the audio config, persists the setting, and logs the change.
@@ -194,6 +198,7 @@ class TTSService {
         }
     private lateinit var audioConfig: AudioConfig
     private lateinit var voiceSelectionParams: VoiceSelectionParams
+
     /** The sample rate (in hertz) used for synthesized audio, e.g. `24000`. */
     var sampleRateHz: Int = DEFAULT_SAMPLE_RATE
         private set

@@ -1,7 +1,5 @@
 package dev.botak.client
 
-import javax.swing.JOptionPane
-
 /**
  * Returns `true` if the current process is running with Windows administrator privileges.
  *
