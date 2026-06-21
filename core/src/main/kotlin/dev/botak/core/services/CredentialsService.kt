@@ -75,10 +75,11 @@ class CredentialsService(
      * @return `true` if the token has expired (or is about to), or has no expiration time.
      */
     internal fun isTokenExpired(): Boolean {
-        val expirationTime = accessToken.expirationTime ?: run {
-            LOGGER.debug("Access token has no expiration time; treating as expired")
-            return true
-        }
+        val expirationTime =
+            accessToken.expirationTime ?: run {
+                LOGGER.debug("Access token has no expiration time; treating as expired")
+                return true
+            }
         val now = System.currentTimeMillis()
         val msUntilExpiry = expirationTime.time - now
         val isExpired = msUntilExpiry <= TOKEN_SAFETY_MARGIN_MS
