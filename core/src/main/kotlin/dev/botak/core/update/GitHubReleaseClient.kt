@@ -77,11 +77,15 @@ class GitHubReleaseClient(
                     .firstOrNull { it.name?.endsWith("-Setup.exe") == true }
                     ?.browserDownloadUrl
 
+            val htmlUrl =
+                dto.htmlUrl
+                    ?: throw IllegalStateException("Release missing html_url (needed for fallback 'Open release page' action)")
+
             return ReleaseInfo(
                 version = version,
                 changelog = dto.body ?: "",
                 setupAssetUrl = setupUrl,
-                htmlUrl = dto.htmlUrl ?: "",
+                htmlUrl = htmlUrl,
             )
         }
     }
