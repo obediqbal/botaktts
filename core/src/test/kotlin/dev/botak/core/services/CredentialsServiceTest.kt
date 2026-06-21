@@ -6,14 +6,14 @@ import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import java.time.Instant
+import java.util.Date
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import java.time.Instant
-import java.util.Date
 
 /**
  * Unit tests for [CredentialsService].
@@ -89,9 +89,10 @@ class CredentialsServiceTest {
      */
     @Test
     fun `isTokenExpired returns true when expiration is within the safety margin`() {
-        val withinMargin = Date.from(
-            Instant.now().plusMillis(CredentialsService.TOKEN_SAFETY_MARGIN_MS - 60_000),
-        )
+        val withinMargin =
+            Date.from(
+                Instant.now().plusMillis(CredentialsService.TOKEN_SAFETY_MARGIN_MS - 60_000),
+            )
         val service = CredentialsService(AccessToken("token", withinMargin))
         assertTrue(service.isTokenExpired())
     }
@@ -102,9 +103,10 @@ class CredentialsServiceTest {
      */
     @Test
     fun `isTokenExpired returns false when expiration is beyond the safety margin`() {
-        val beyondMargin = Date.from(
-            Instant.now().plusMillis(CredentialsService.TOKEN_SAFETY_MARGIN_MS + 60_000),
-        )
+        val beyondMargin =
+            Date.from(
+                Instant.now().plusMillis(CredentialsService.TOKEN_SAFETY_MARGIN_MS + 60_000),
+            )
         val service = CredentialsService(AccessToken("token", beyondMargin))
         assertFalse(service.isTokenExpired())
     }

@@ -1,4 +1,5 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import java.io.File
 
 plugins {
     id("org.jetbrains.compose") version "1.8.0"
@@ -16,6 +17,10 @@ repositories {
 
 dependencies {
     implementation(project(":core"))
+
+    // okhttp is transitive from :core at runtime but not on client's compile classpath.
+    // Pin the same version as :core to avoid drift. Adds no new runtime artifact.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
 // https://mvnrepository.com/artifact/com.1stleg/jnativehook
     implementation("com.1stleg:jnativehook:2.1.0")
@@ -45,11 +50,35 @@ compose.desktop {
     }
 }
 
+// Bundle the project version into a runtime resource read by VersionProvider (core).
+val generateVersionProperties by tasks.registering {
+    val outputDir = layout.buildDirectory.dir("generated/version")
+    val versionValue = project.version.toString()
+    inputs.property("version", versionValue)
+    outputs.dir(outputDir)
+    doLast {
+        val dir = outputDir.get().asFile
+        dir.mkdirs()
+        File(dir, "version.properties").writeText("version=$versionValue\n")
+    }
+}
+
+sourceSets.main {
+    resources.srcDir(layout.buildDirectory.dir("generated/version"))
+}
+
+tasks.named("processResources") {
+    dependsOn(generateVersionProperties)
+}
+
 tasks.test {
     useJUnitPlatform()
 }
 kotlin {
     jvmToolchain(17)
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }
 
 tasks.register("printVersion") {
