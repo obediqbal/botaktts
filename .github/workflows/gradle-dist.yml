@@ -42,15 +42,11 @@ jobs:
       - name: Build NSIS Installer
         run: ./gradlew :client:createInstaller --stacktrace
 
-      - name: Build Portable Executable
-        run: ./gradlew :client:createPortable --stacktrace
-
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ env.PROJECT_VERSION }}
           files: |
             client/build/distributions/BotakTTS-${{ env.PROJECT_VERSION }}-Setup.exe
-            client/build/distributions/BotakTTS-${{ env.PROJECT_VERSION }}-Portable.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
