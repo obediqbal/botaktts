@@ -271,7 +271,7 @@ private fun AppWindow(
                         OutlinedTextField(
                             value = inputText,
                             onValueChange = { inputText = it },
-                            label = { Text("Enter text to synthesize") },
+                            label = { Text("What should I say?") },
                             modifier =
                                 Modifier.fillMaxWidth().focusRequester(focusRequester).onFocusChanged { focusState ->
                                     LOGGER.debug("Text field focus changed ${focusState.isFocused}")
