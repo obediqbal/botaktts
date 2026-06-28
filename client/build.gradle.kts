@@ -122,25 +122,3 @@ tasks.register("createInstaller") {
     }
 }
 
-// Create portable executable task
-tasks.register("createPortable") {
-    dependsOn("prepareDistributions")
-    doLast {
-        // Run NSIS with portable script
-        exec {
-            workingDir = file("${rootProject.projectDir}/scripts")
-            commandLine(
-                "makensis",
-                "/DVERSION=${project.version}",
-                "/DAPP_DIR=${appImageDir.get().asFile.absolutePath}",
-                "portable.nsi",
-            )
-        }
-        // Move the generated portable to distributions folder
-        val portableFile = file("${rootProject.projectDir}/scripts/BotakTTS-${project.version}-Portable.exe")
-        if (portableFile.exists()) {
-            portableFile.copyTo(distDir.get().file("BotakTTS-${project.version}-Portable.exe").asFile, overwrite = true)
-            portableFile.delete()
-        }
-    }
-}
