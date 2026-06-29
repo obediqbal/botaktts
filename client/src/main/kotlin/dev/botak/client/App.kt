@@ -51,12 +51,14 @@ fun start() =
         var updateState by remember { mutableStateOf<UpdateUiState>(UpdateUiState.Hidden) }
         val scope = rememberCoroutineScope()
         var updateJob by remember { mutableStateOf<Job?>(null) }
+        val appState = remember { AppState() }
 
         AppMainWindow(
             ttsService = ttsService,
             audioStreamService = audioStreamService,
             exitApplication = ::exitApplication,
             enabled = isAppEnabled,
+            appState = appState,
         )
 
         SystemTrays(
