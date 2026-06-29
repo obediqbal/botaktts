@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
+import dev.botak.client.AppState
 import dev.botak.client.forceFocusToWindow
 import dev.botak.client.registerGlobalHotkey
 import dev.botak.client.unregisterGlobalHotkey
@@ -76,6 +77,7 @@ private val LOGGER = LoggerFactory.getLogger("dev.botak.client.AppWindow")
  * @param audioStreamService Service used to stream audio to the virtual microphone.
  * @param exitApplication Called when the user closes the window.
  * @param enabled Whether the app is currently enabled; controls window visibility.
+ * @param appState Shared UI state updated with the now-playing text for the subtitle window.
  */
 @Composable
 @Preview
@@ -84,6 +86,7 @@ fun AppMainWindow(
     audioStreamService: AudioStreamService,
     exitApplication: () -> Unit,
     enabled: Boolean,
+    appState: AppState,
 ) {
     val focusRequester = remember { FocusRequester() }
     var isWindowVisible by remember { mutableStateOf(true) }
@@ -152,6 +155,7 @@ fun AppMainWindow(
             ttsService = ttsService,
             audioStreamService = audioStreamService,
             focusRequester = focusRequester,
+            appState = appState,
         )
 
         LOGGER.debug("Composed App Window")
@@ -169,6 +173,7 @@ fun AppMainWindow(
  * @param ttsService Service used to synthesize speech.
  * @param audioStreamService Service used to stream audio to the virtual microphone.
  * @param focusRequester Requester used to focus the text field when the window gains focus.
+ * @param appState Shared UI state updated with the now-playing text for the subtitle window.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -178,6 +183,7 @@ private fun AppWindow(
     ttsService: TTSService,
     audioStreamService: AudioStreamService,
     focusRequester: FocusRequester,
+    appState: AppState,
 ) {
     var inputText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
@@ -208,13 +214,17 @@ private fun AppWindow(
 
                 // Start
                 nowPlaying = text
+                appState.updateNowPlaying(text)
                 isLoading = false
                 isPlaying = true
-                audioStreamService.streamToVirtualAudio(speech, ttsService.sampleRateHz.toFloat())
-
-                // End
-                isPlaying = false
-                nowPlaying = ""
+                try {
+                    audioStreamService.streamToVirtualAudio(speech, ttsService.sampleRateHz.toFloat())
+                } finally {
+                    // End — runs on normal completion and on cancellation mid-stream.
+                    isPlaying = false
+                    nowPlaying = ""
+                    appState.clearNowPlaying()
+                }
             }
     }
 
@@ -230,6 +240,7 @@ private fun AppWindow(
                 job?.cancelAndJoin()
             }
             nowPlaying = ""
+            appState.clearNowPlaying()
             isPlaying = false
         }
     }
