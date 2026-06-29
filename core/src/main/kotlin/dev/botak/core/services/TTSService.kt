@@ -280,8 +280,9 @@ class TTSService {
      * @param text The text to synthesize.
      * @return the synthesized audio content as a byte array.
      * @throws ApiException if the API call fails with a non-recoverable error.
+     *
+     * TODO: Add feedback that the voice doesn't support the Pitch parameter.
      */
-    // TODO: Add feedback that the voice doesn't support Pitch parameter
     fun synthesizeSpeech(text: String): ByteArray {
         LOGGER.debug("Synthesizing speech... text=$text")
         val input = SynthesisInput.newBuilder().setText(text).build()

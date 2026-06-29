@@ -121,4 +121,3 @@ tasks.register("createInstaller") {
         }
     }
 }
-
