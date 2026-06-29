@@ -128,8 +128,13 @@ private fun SubtitleContent(
                             onDragEnd = { persistSubtitleBounds(window) },
                         ) { change, dragAmount ->
                             change.consume()
-                            val newWidth = (window.width + dragAmount.x.toInt()).coerceAtLeast(MIN_WIDTH)
-                            val newHeight = (window.height + dragAmount.y.toInt()).coerceAtLeast(MIN_HEIGHT)
+                            val screen = window.graphicsConfiguration.bounds
+                            val newWidth =
+                                (window.width + dragAmount.x.toInt())
+                                    .coerceIn(MIN_WIDTH, screen.width)
+                            val newHeight =
+                                (window.height + dragAmount.y.toInt())
+                                    .coerceIn(MIN_HEIGHT, screen.height)
                             window.setSize(newWidth, newHeight)
                         }
                     },
