@@ -261,6 +261,13 @@ class ConfigServiceTest {
         ConfigService.userSettings.speed = expected.speed
         ConfigService.userSettings.volume = expected.volume
 
+        // reset subtitle fields so the round-trip equality holds regardless of prior singleton state
+        ConfigService.userSettings.subtitleWindowEnabled = false
+        ConfigService.userSettings.subtitleWindowX = null
+        ConfigService.userSettings.subtitleWindowY = null
+        ConfigService.userSettings.subtitleWindowWidth = 600
+        ConfigService.userSettings.subtitleWindowHeight = 200
+
         ConfigService.saveUserSettings()
 
         val file = ConfigService.settingsFile
@@ -353,5 +360,70 @@ class ConfigServiceTest {
 
         // the file should not have been created since the parent is missing
         assertFalse(unreachable.exists())
+    }
+
+    // ------------------------------------------------------------------
+    // Subtitle window settings
+    // ------------------------------------------------------------------
+
+    /** The subtitle window fields default to false / null / 600 / 200 when the file is missing. */
+    @Test
+    fun `loadUserSettings defaults subtitle fields when file is missing`() {
+        // beforeTest already points settingsFile at a non-existent temp file
+        val loaded = ConfigService.loadUserSettings()
+        assertEquals(false, loaded.subtitleWindowEnabled)
+        assertEquals(null, loaded.subtitleWindowX)
+        assertEquals(null, loaded.subtitleWindowY)
+        assertEquals(600, loaded.subtitleWindowWidth)
+        assertEquals(200, loaded.subtitleWindowHeight)
+    }
+
+    /** Subtitle bounds (enabled flag, position, size) survive a save/load round-trip. */
+    @Test
+    fun `subtitle bounds round-trip through save and load`() {
+        ConfigService.userSettings.apply {
+            subtitleWindowEnabled = true
+            subtitleWindowX = 100
+            subtitleWindowY = 200
+            subtitleWindowWidth = 800
+            subtitleWindowHeight = 250
+        }
+        ConfigService.saveUserSettings()
+
+        val reloaded = ConfigService.loadUserSettings()
+        assertEquals(true, reloaded.subtitleWindowEnabled)
+        assertEquals(100, reloaded.subtitleWindowX)
+        assertEquals(200, reloaded.subtitleWindowY)
+        assertEquals(800, reloaded.subtitleWindowWidth)
+        assertEquals(250, reloaded.subtitleWindowHeight)
+    }
+
+    /** A null subtitle position persists as null through save/load. */
+    @Test
+    fun `null subtitle position persists as null`() {
+        ConfigService.userSettings.apply {
+            subtitleWindowEnabled = true
+            subtitleWindowX = null
+            subtitleWindowY = null
+        }
+        ConfigService.saveUserSettings()
+
+        val reloaded = ConfigService.loadUserSettings()
+        assertEquals(null, reloaded.subtitleWindowX)
+        assertEquals(null, reloaded.subtitleWindowY)
+    }
+
+    /** A settings JSON written by an older app version (no subtitle fields) deserializes with the Kotlin defaults. */
+    @Test
+    fun `settings json missing subtitle fields deserializes with defaults`() {
+        ConfigService.settingsFile.writeText(
+            """{"languageCode":"en-US","voiceName":"en-US-Wavenet-D","pitch":0.0,"speed":1.0,"volume":1.0}""",
+        )
+        val loaded = ConfigService.loadUserSettings()
+        assertEquals(false, loaded.subtitleWindowEnabled)
+        assertEquals(null, loaded.subtitleWindowX)
+        assertEquals(null, loaded.subtitleWindowY)
+        assertEquals(600, loaded.subtitleWindowWidth)
+        assertEquals(200, loaded.subtitleWindowHeight)
     }
 }
