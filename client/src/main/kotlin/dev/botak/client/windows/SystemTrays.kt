@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import dev.botak.core.services.AudioStreamService
+import dev.botak.core.services.ConfigService
 import dev.botak.core.services.TTSService
 import org.slf4j.LoggerFactory
 import java.awt.CheckboxMenuItem
@@ -28,6 +29,8 @@ private val LOGGER = LoggerFactory.getLogger("dev.botak.client.windows.SystemTra
  *
  * @param onAppEnabled Called when the tray's Enabled checkbox is checked.
  * @param onAppDisabled Called when the tray's Enabled checkbox is unchecked.
+ * @param subtitleWindowEnabled Initial checked state of the "Show Subtitles" toggle (from persisted config).
+ * @param onSubtitleWindowToggled Called with the new checked state when the "Show Subtitles" toggle changes.
  * @param onCheckForUpdates Called when the user selects "Check for updates…".
  * @param exitApplication Called when the user selects Exit.
  * @param ttsService Used to populate and drive the settings window.
@@ -38,6 +41,8 @@ private val LOGGER = LoggerFactory.getLogger("dev.botak.client.windows.SystemTra
 fun SystemTrays(
     onAppEnabled: () -> Unit,
     onAppDisabled: () -> Unit,
+    subtitleWindowEnabled: Boolean,
+    onSubtitleWindowToggled: (Boolean) -> Unit,
     onCheckForUpdates: () -> Unit,
     exitApplication: () -> Unit,
     ttsService: TTSService,
@@ -54,6 +59,8 @@ fun SystemTrays(
                 onExitItem = { exitApplication() },
                 onAppEnabled = onAppEnabled,
                 onAppDisabled = onAppDisabled,
+                subtitleWindowEnabled = subtitleWindowEnabled,
+                onSubtitleWindowToggled = onSubtitleWindowToggled,
             )
         }
     }
@@ -74,6 +81,8 @@ fun SystemTrays(
  * @param onExitItem Called when the Exit menu item is selected.
  * @param onAppEnabled Called when the Enabled checkbox is checked.
  * @param onAppDisabled Called when the Enabled checkbox is unchecked.
+ * @param subtitleWindowEnabled Initial checked state of the "Show Subtitles" checkbox.
+ * @param onSubtitleWindowToggled Called with the new checked state when "Show Subtitles" is toggled.
  */
 private fun useSystemTray(
     onSettingsItem: () -> Unit,
@@ -81,6 +90,8 @@ private fun useSystemTray(
     onExitItem: () -> Unit,
     onAppEnabled: () -> Unit,
     onAppDisabled: () -> Unit,
+    subtitleWindowEnabled: Boolean,
+    onSubtitleWindowToggled: (Boolean) -> Unit,
 ) {
     val tray = SystemTray.getSystemTray()
     val image = Toolkit.getDefaultToolkit().getImage("icon.png")
@@ -105,6 +116,16 @@ private fun useSystemTray(
         }
     }
     popup.add(enabledItem)
+
+    val subtitleItem = CheckboxMenuItem("Show Subtitles", subtitleWindowEnabled)
+    subtitleItem.addItemListener {
+        val checked = subtitleItem.state
+        LOGGER.debug("Show Subtitles toggle: $checked")
+        ConfigService.userSettings.subtitleWindowEnabled = checked
+        ConfigService.saveUserSettings()
+        onSubtitleWindowToggled(checked)
+    }
+    popup.add(subtitleItem)
 
     val exitItem = MenuItem("Exit")
     exitItem.addActionListener { onExitItem() }

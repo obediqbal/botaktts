@@ -4,10 +4,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.window.application
 import dev.botak.client.update.UpdateInstaller
 import dev.botak.client.windows.AppMainWindow
+import dev.botak.client.windows.SubtitleWindow
 import dev.botak.client.windows.SystemTrays
 import dev.botak.client.windows.UpdateUiState
 import dev.botak.client.windows.UpdateWindow
 import dev.botak.core.services.AudioStreamService
+import dev.botak.core.services.ConfigService
 import dev.botak.core.services.TTSService
 import dev.botak.core.update.GitHubReleaseClient
 import dev.botak.core.update.UpdateCheckResult
@@ -52,6 +54,7 @@ fun start() =
         val scope = rememberCoroutineScope()
         var updateJob by remember { mutableStateOf<Job?>(null) }
         val appState = remember { AppState() }
+        var subtitleWindowEnabled by remember { mutableStateOf(ConfigService.userSettings.subtitleWindowEnabled) }
 
         AppMainWindow(
             ttsService = ttsService,
@@ -61,10 +64,17 @@ fun start() =
             appState = appState,
         )
 
+        SubtitleWindow(
+            enabled = subtitleWindowEnabled,
+            appState = appState,
+        )
+
         SystemTrays(
             exitApplication = ::exitApplication,
             onAppEnabled = { isAppEnabled = true },
             onAppDisabled = { isAppEnabled = false },
+            subtitleWindowEnabled = subtitleWindowEnabled,
+            onSubtitleWindowToggled = { subtitleWindowEnabled = it },
             onCheckForUpdates = {
                 if (updateState !is UpdateUiState.Checking && updateState !is UpdateUiState.Downloading) {
                     updateJob?.cancel()
