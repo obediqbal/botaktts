@@ -65,6 +65,11 @@ object ConfigService {
      * @property pitch Voice pitch adjustment, in the range `-20.0..20.0`.
      * @property speed Speaking rate multiplier, in the range `0.25..4.0`.
      * @property volume Linear volume gain applied during playback, in the range `0.0..2.0`.
+     * @property subtitleWindowEnabled Whether the OBS subtitle window is shown. Defaults to `false`.
+     * @property subtitleWindowX Saved subtitle window x position in screen pixels, or `null` to use the default position.
+     * @property subtitleWindowY Saved subtitle window y position in screen pixels, or `null` to use the default position.
+     * @property subtitleWindowWidth Saved subtitle window width in pixels. Defaults to `600`; clamped to `>= 200` on restore.
+     * @property subtitleWindowHeight Saved subtitle window height in pixels. Defaults to `200`; clamped to `>= 60` on restore.
      */
     data class UserSettings(
         var languageCode: String,
@@ -72,6 +77,11 @@ object ConfigService {
         var pitch: Double,
         var speed: Double,
         var volume: Float,
+        var subtitleWindowEnabled: Boolean = false,
+        var subtitleWindowX: Int? = null,
+        var subtitleWindowY: Int? = null,
+        var subtitleWindowWidth: Int = 600,
+        var subtitleWindowHeight: Int = 200,
     )
 
     /**
