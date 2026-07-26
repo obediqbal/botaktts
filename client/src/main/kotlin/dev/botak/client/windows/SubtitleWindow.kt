@@ -8,6 +8,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -21,10 +22,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import dev.botak.client.AppState
 import dev.botak.core.services.ConfigService
+import java.awt.Component
+import java.awt.Container
 import java.awt.GraphicsEnvironment
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
+import javax.swing.JComponent
+import javax.swing.SwingUtilities
 import javax.swing.Timer
+import java.awt.Color as AwtColor
 
 /** Minimum usable subtitle window outer size, enforced on restore. */
 private const val MIN_WIDTH = 200
@@ -44,6 +50,9 @@ private const val BOUNDS_PERSIST_DEBOUNCE_MS = 300
  * empty so it remains findable on the desktop. Intended as a stable Window Capture source rather
  * than a transparent desktop overlay (layered transparent windows often capture as solid black
  * without usable alpha on Windows).
+ *
+ * Native AWT/Swing surfaces (frame, content pane, and descendants) are forced to black so OBS
+ * Window Capture does not sample the default white window underlay under Compose's Skia layer.
  *
  * Visibility is bound to [enabled] only — the "Show Subtitles" tray toggle — and is independent of
  * the app "Enabled" toggle that hides [AppMainWindow]. Closing the window via the title-bar close
@@ -73,7 +82,12 @@ fun SubtitleWindow(
         resizable = true,
         visible = enabled,
     ) {
+        // Re-apply after Compose rebuilds the AWT hierarchy so capture stays black, not default white.
+        SideEffect {
+            paintNativeSurfacesBlack(window)
+        }
         LaunchedEffect(Unit) {
+            paintNativeSurfacesBlack(window)
             initSubtitleBounds(window)
         }
         DisposableEffect(window) {
@@ -100,6 +114,56 @@ fun SubtitleWindow(
             }
         }
         SubtitleContent(text = text)
+    }
+}
+
+/**
+ * Forces [window] and its Swing/AWT hierarchy to an opaque black background.
+ *
+ * Compose paints black on the Skia layer, but the default AWT frame/content pane is white. OBS
+ * Window Capture on Windows often samples that native surface, which produced a white source and
+ * unreadable white text. Setting the hierarchy black keeps desktop and capture aligned.
+ *
+ * Runs on the EDT when invoked off-thread so AWT property changes stay thread-safe.
+ *
+ * @param window The subtitle [ComposeWindow] to paint.
+ */
+private fun paintNativeSurfacesBlack(window: ComposeWindow) {
+    val apply = {
+        val black = AwtColor.BLACK
+        window.background = black
+        window.contentPane.background = black
+        window.rootPane?.background = black
+        window.layeredPane?.background = black
+        paintComponentTreeBlack(window.contentPane, black)
+        window.repaint()
+    }
+    if (SwingUtilities.isEventDispatchThread()) {
+        apply()
+    } else {
+        SwingUtilities.invokeLater(apply)
+    }
+}
+
+/**
+ * Recursively sets background black and opaque on [root] and all descendants.
+ *
+ * @param root Root of the component subtree.
+ * @param black The black [AwtColor] to apply.
+ */
+private fun paintComponentTreeBlack(
+    root: Component,
+    black: AwtColor,
+) {
+    root.background = black
+    if (root is JComponent) {
+        // Keep opaque so capture does not composite a clear/white underlay.
+        root.isOpaque = true
+    }
+    if (root is Container) {
+        for (i in 0 until root.componentCount) {
+            paintComponentTreeBlack(root.getComponent(i), black)
+        }
     }
 }
 
