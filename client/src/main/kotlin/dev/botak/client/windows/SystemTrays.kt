@@ -24,12 +24,15 @@ private val LOGGER = LoggerFactory.getLogger("dev.botak.client.windows.SystemTra
  * Installs the BotakTTS system tray icon and renders the settings window on demand.
  *
  * On first composition, if the platform supports a system tray, a tray icon is created with a
- * popup menu providing access to Settings, Check for updates, an Enabled toggle, and Exit. The
- * settings window is shown whenever the user selects the Settings menu item.
+ * popup menu providing access to Settings, Check for updates, an Enabled toggle, Show Subtitles,
+ * and Exit. The settings window is shown whenever the user selects the Settings menu item.
+ *
+ * The "Show Subtitles" checkbox tracks [subtitleWindowEnabled] even when the subtitle window is
+ * closed from its title bar, so the tray stays in sync with Compose state.
  *
  * @param onAppEnabled Called when the tray's Enabled checkbox is checked.
  * @param onAppDisabled Called when the tray's Enabled checkbox is unchecked.
- * @param subtitleWindowEnabled Initial checked state of the "Show Subtitles" toggle (from persisted config).
+ * @param subtitleWindowEnabled Checked state of the "Show Subtitles" toggle (from Compose / config).
  * @param onSubtitleWindowToggled Called with the new checked state when the "Show Subtitles" toggle changes.
  * @param onCheckForUpdates Called when the user selects "Check for updates…".
  * @param exitApplication Called when the user selects Exit.
@@ -49,6 +52,8 @@ fun SystemTrays(
     audioStreamService: AudioStreamService,
 ) {
     var showSettings by remember { mutableStateOf(false) }
+    // Held so LaunchedEffect can sync checkbox when the subtitle window is closed via X.
+    val subtitleMenuItem = remember { arrayOfNulls<CheckboxMenuItem>(1) }
 
     LaunchedEffect(Unit) {
         if (SystemTray.isSupported()) {
@@ -61,7 +66,16 @@ fun SystemTrays(
                 onAppDisabled = onAppDisabled,
                 subtitleWindowEnabled = subtitleWindowEnabled,
                 onSubtitleWindowToggled = onSubtitleWindowToggled,
+                subtitleMenuItemOut = subtitleMenuItem,
             )
+        }
+    }
+
+    // Keep AWT checkbox aligned with Compose (tray click or window close).
+    LaunchedEffect(subtitleWindowEnabled) {
+        val item = subtitleMenuItem[0] ?: return@LaunchedEffect
+        if (item.state != subtitleWindowEnabled) {
+            item.state = subtitleWindowEnabled
         }
     }
 
@@ -83,6 +97,7 @@ fun SystemTrays(
  * @param onAppDisabled Called when the Enabled checkbox is unchecked.
  * @param subtitleWindowEnabled Initial checked state of the "Show Subtitles" checkbox.
  * @param onSubtitleWindowToggled Called with the new checked state when "Show Subtitles" is toggled.
+ * @param subtitleMenuItemOut Output slot set to the live "Show Subtitles" checkbox so Compose can sync its state.
  */
 private fun useSystemTray(
     onSettingsItem: () -> Unit,
@@ -92,6 +107,7 @@ private fun useSystemTray(
     onAppDisabled: () -> Unit,
     subtitleWindowEnabled: Boolean,
     onSubtitleWindowToggled: (Boolean) -> Unit,
+    subtitleMenuItemOut: Array<CheckboxMenuItem?>,
 ) {
     val tray = SystemTray.getSystemTray()
     val image = Toolkit.getDefaultToolkit().getImage("icon.png")
@@ -126,6 +142,7 @@ private fun useSystemTray(
         onSubtitleWindowToggled(checked)
     }
     popup.add(subtitleItem)
+    subtitleMenuItemOut[0] = subtitleItem
 
     val exitItem = MenuItem("Exit")
     exitItem.addActionListener { onExitItem() }
