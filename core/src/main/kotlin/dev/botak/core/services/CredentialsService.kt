@@ -7,7 +7,7 @@ import com.google.auth.oauth2.GoogleCredentials
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.time.Instant
-import java.util.*
+import java.util.Date
 
 /**
  * Manages OAuth access tokens used to authenticate against the Google Cloud Text-to-Speech API.

@@ -92,7 +92,6 @@ object ConfigService {
      *
      * @return the loaded [UserSettings], or a default instance on any failure.
      */
-    // Load user settings from file or return defaults.
     internal fun loadUserSettings(): UserSettings =
         try {
             if (settingsFile.exists()) {
@@ -126,7 +125,6 @@ object ConfigService {
      * Persists the current [userSettings] to the settings file as pretty-printed JSON.
      * Failures are logged but not rethrown.
      */
-    // Save user settings to file
     fun saveUserSettings() {
         try {
             objectMapper.writerWithDefaultPrettyPrinter().writeValue(settingsFile, userSettings)

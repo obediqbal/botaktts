@@ -79,7 +79,8 @@ fun SettingsWindow(
     // Preview section states
     var previewText by remember {
         mutableStateOf(
-            "Movies, oh my gosh, I just just absolutely love them. They're like time machines taking you to different worlds and landscapes, and um, and I just can't get enough of it.",
+            "Movies, oh my gosh, I just just absolutely love them. They're like time machines taking you to " +
+                "different worlds and landscapes, and um, and I just can't get enough of it.",
         )
     }
     var isPreviewPlaying by remember { mutableStateOf(false) }
