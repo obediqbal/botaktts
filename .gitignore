@@ -63,3 +63,4 @@ kotlin-ide/
 .npmrc
 /.idea/AndroidProjectSystem.xml
 .env
+*/bin/**
