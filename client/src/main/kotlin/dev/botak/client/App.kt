@@ -71,6 +71,11 @@ fun start() =
         SubtitleWindow(
             enabled = subtitleWindowEnabled,
             appState = appState,
+            onDismissed = {
+                ConfigService.userSettings.subtitleWindowEnabled = false
+                ConfigService.saveUserSettings()
+                subtitleWindowEnabled = false
+            },
         )
 
         SystemTrays(

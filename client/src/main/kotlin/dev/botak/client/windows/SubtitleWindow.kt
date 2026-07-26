@@ -1,188 +1,145 @@
 package dev.botak.client.windows
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import dev.botak.client.AppState
 import dev.botak.core.services.ConfigService
 import java.awt.GraphicsEnvironment
-import java.awt.MouseInfo
-import java.awt.Point
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
+import javax.swing.Timer
 
-/** Minimum usable subtitle window size, enforced on restore and on resize. */
+/** Minimum usable subtitle window outer size, enforced on restore. */
 private const val MIN_WIDTH = 200
 private const val MIN_HEIGHT = 60
 
 /**
- * Transparent OBS-friendly subtitle window that mirrors the text currently being spoken.
+ * Debounce interval (ms) before persisting bounds after a native move/resize burst.
+ * Avoids writing settings.json on every pixel of a drag.
+ */
+private const val BOUNDS_PERSIST_DEBOUNCE_MS = 300
+
+/**
+ * Opaque OBS Window Capture caption panel that mirrors the text currently being spoken.
  *
- * Renders a transparent, undecorated, always-on-top window containing only the now-playing text
- * (white glyphs with a black halo, centered, wrapped to the window width). No `MaterialTheme` or
- * opaque surface is used so the window composites cleanly over any OBS scene. The window is moved
- * by dragging anywhere on it and resized via a small grip in the bottom-right corner; bounds are
- * restored from [ConfigService.userSettings] on first composition and persisted on move/resize end.
+ * Renders a decorated, resizable, non-always-on-top window with a solid black client area and
+ * plain white centered subtitle text while audio is playing. When idle the panel stays black and
+ * empty so it remains findable on the desktop. Intended as a stable Window Capture source rather
+ * than a transparent desktop overlay (layered transparent windows often capture as solid black
+ * without usable alpha on Windows).
  *
  * Visibility is bound to [enabled] only — the "Show Subtitles" tray toggle — and is independent of
- * the app "Enabled" toggle that hides [AppMainWindow].
+ * the app "Enabled" toggle that hides [AppMainWindow]. Closing the window via the title-bar close
+ * control calls [onDismissed] so the parent can persist off and uncheck the tray item.
+ *
+ * Bounds are restored from [ConfigService.userSettings] on first composition and debounced-persisted
+ * after native move/resize. Saved width/height are outer window sizes (including title bar chrome).
  *
  * @param enabled Whether the subtitle window is shown (the persisted "Show Subtitles" tray state).
  * @param appState Shared UI state providing the now-playing text.
+ * @param onDismissed Called when the user closes the window (X); parent must set enabled false and persist.
  */
 @Composable
 fun SubtitleWindow(
     enabled: Boolean,
     appState: AppState,
+    onDismissed: () -> Unit,
 ) {
     val text by appState.nowPlayingText.collectAsState()
 
     Window(
-        onCloseRequest = {},
+        onCloseRequest = onDismissed,
         title = "Botak TTS Subtitles",
-        transparent = true,
-        undecorated = true,
-        alwaysOnTop = true,
-        resizable = false,
+        transparent = false,
+        undecorated = false,
+        alwaysOnTop = false,
+        resizable = true,
         visible = enabled,
     ) {
         LaunchedEffect(Unit) {
             initSubtitleBounds(window)
         }
-        SubtitleContent(window = window, text = text)
+        DisposableEffect(window) {
+            val persistTimer =
+                Timer(BOUNDS_PERSIST_DEBOUNCE_MS) {
+                    persistSubtitleBounds(window)
+                }.apply { isRepeats = false }
+
+            val componentListener =
+                object : ComponentAdapter() {
+                    override fun componentMoved(e: ComponentEvent?) {
+                        persistTimer.restart()
+                    }
+
+                    override fun componentResized(e: ComponentEvent?) {
+                        persistTimer.restart()
+                    }
+                }
+
+            window.addComponentListener(componentListener)
+            onDispose {
+                persistTimer.stop()
+                window.removeComponentListener(componentListener)
+            }
+        }
+        SubtitleContent(text = text)
     }
 }
 
 /**
- * The subtitle content: a full-size transparent, draggable surface that centers the outlined text
- * and hosts the bottom-right resize grip.
+ * Full-size black caption surface. Renders centered white subtitle text when [text] is non-blank;
+ * otherwise only the black background (idle / findable panel).
  *
- * @param window The underlying [ComposeWindow], used for drag-to-move and resize.
- * @param text The current now-playing text (empty renders nothing).
+ * @param text The current now-playing text.
  */
 @Composable
-private fun SubtitleContent(
-    window: ComposeWindow,
-    text: String,
-) {
-    var dragPoint by remember { mutableStateOf<Point?>(null) }
+private fun SubtitleContent(text: String) {
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = {
-                            val mouse = MouseInfo.getPointerInfo().location
-                            dragPoint = Point(mouse.x - window.x, mouse.y - window.y)
-                        },
-                        onDragEnd = {
-                            dragPoint = null
-                            persistSubtitleBounds(window)
-                        },
-                        onDragCancel = { dragPoint = null },
-                    ) { change, _ ->
-                        change.consume()
-                        val mouse = MouseInfo.getPointerInfo().location
-                        dragPoint?.let { offset ->
-                            window.setLocation(mouse.x - offset.x, mouse.y - offset.y)
-                        }
-                    }
-                },
+                .background(Color.Black),
         contentAlignment = Alignment.Center,
     ) {
         if (text.isNotBlank()) {
             SubtitleText(text)
         }
-        // Bottom-right resize grip. detectDragGestures consumes its own events, so dragging the
-        // grip resizes instead of moving the window.
-        Box(
-            modifier =
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(16.dp)
-                    .background(Color.Gray.copy(alpha = 0.4f))
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragEnd = { persistSubtitleBounds(window) },
-                        ) { change, dragAmount ->
-                            change.consume()
-                            val screen = window.graphicsConfiguration.bounds
-                            val newWidth =
-                                (window.width + dragAmount.x.toInt())
-                                    .coerceIn(MIN_WIDTH, screen.width)
-                            val newHeight =
-                                (window.height + dragAmount.y.toInt())
-                                    .coerceIn(MIN_HEIGHT, screen.height)
-                            window.setSize(newWidth, newHeight)
-                        }
-                    },
-        )
     }
 }
 
 /**
- * Renders the subtitle text as a white fill with a crisp black outline.
- *
- * The outline is built by stacking eight black copies at ±2dp offsets behind one white copy on
- * top, all `fillMaxWidth` so they wrap identically to the window width. No `MaterialTheme` is
- * required.
+ * Renders the subtitle as plain white bold centered text, soft-wrapped to the window width.
  *
  * @param text The text to render.
  */
 @Composable
 private fun SubtitleText(text: String) {
-    val fillStyle =
-        TextStyle(
-            color = Color.White,
-            fontSize = 36.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-        )
-    val outlineStyle = fillStyle.copy(color = Color.Black)
-    val outlineOffsets =
-        listOf(
-            -2 to -2,
-            -2 to 0,
-            -2 to 2,
-            0 to -2,
-            0 to 2,
-            2 to -2,
-            2 to 0,
-            2 to 2,
-        )
-    outlineOffsets.forEach { (dx, dy) ->
-        BasicText(
-            text = text,
-            style = outlineStyle,
-            softWrap = true,
-            modifier = Modifier.fillMaxWidth().offset(dx.dp, dy.dp),
-        )
-    }
     BasicText(
         text = text,
-        style = fillStyle,
+        style =
+            TextStyle(
+                color = Color.White,
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            ),
         softWrap = true,
         modifier = Modifier.fillMaxWidth(),
     )
@@ -194,6 +151,9 @@ private fun SubtitleText(text: String) {
  * screen size. If the saved position is `null` or places the window fully off-screen, a default
  * position (horizontally centered, near the bottom with a 40px margin) is computed using the
  * resolved width/height.
+ *
+ * Note: with native chrome, width/height are outer sizes (title bar included). Multi-monitor
+ * positions fully off the primary screen still fall back to the default (pre-existing behavior).
  *
  * @param window The underlying [ComposeWindow] to position and size.
  */
@@ -229,7 +189,7 @@ private fun initSubtitleBounds(window: ComposeWindow) {
 }
 
 /**
- * Persists the current window position and size to [ConfigService.userSettings] and saves.
+ * Persists the current window outer position and size to [ConfigService.userSettings] and saves.
  *
  * @param window The underlying [ComposeWindow] whose bounds to persist.
  */
