@@ -77,3 +77,14 @@ Default config in `core/src/main/resources/application.conf`.
 - Document parameters (`@param`), return values (`@return`), and thrown exceptions (`@throws`) where they add value. Include valid ranges/constraints for values that are validated or persisted.
 - File-level KDoc is encouraged for files whose top-level declarations benefit from broader context.
 - Keep comments up to date when changing code; do not leave stale KDoc.
+
+## Cursor Cloud specific instructions
+
+This Linux VM is provisioned by the startup update script (`chmod +x gradlew` + `./gradlew --quiet help`). System dependencies (JDK 17, `libxkbcommon-x11-0`) are baked into the VM snapshot, not the update script. Standard build/lint/test/run commands are in the **Build Commands** section above.
+
+- **Toolchain:** Build requires a **JDK 17** toolchain (`jvmToolchain(17)`); the Gradle 8.5 wrapper itself runs fine on the VM's default JDK 21. `gradlew` is committed non-executable (`100644`), so it must be `chmod +x`'d (the update script handles this).
+- **No credentials needed for TTS:** auth goes through the public token-issuer Cloud Function (see Platform Notes URL); there is no service-account key or secret to set. The real Google Cloud TTS API is reachable from the VM, so synthesis works end-to-end.
+- **GUI runs headless on `DISPLAY=:1`:** `./gradlew :client:run` launches the Compose window there. Skiko logs `RenderException: Cannot create Linux GL context` and falls back to software rendering — this warning is benign and the window still renders.
+- **Virtual-mic playback is Windows-only:** the GUI's "speak" action and the CLI `SYNTH` command call `streamToVirtualAudio`, which looks for a mixer named `CABLE Input (VB-Audio Virtual Cable)`. That device cannot exist on Linux, so it throws `IllegalStateException("Virtual Audio not found")`. In the **GUI** this Error is uncaught and **terminates the app** after one submit; the speak-to-mic path therefore cannot be exercised end-to-end on Linux. To verify the core text→speech pipeline without the playback crash, use the `:core:run` interactive CLI (`SYNTH`/`GETVOICENAMES` commands) and confirm the `SynthesizeSpeech` gRPC call returns and `synthesized speech` is logged. There is also no audio output device, so the Settings preview (`streamToSpeakers`) won't play either.
+- **Native-lib gotcha:** JNativeHook (global hotkey) loads a native `.so` needing `libxkbcommon-x11.so.0`. A missing native lib raises `UnsatisfiedLinkError` (an `Error`, not `Exception`), which the app's `try/catch (Exception)` does **not** catch and which crashes the GUI — keep that lib present.
+- **Lint/build caveat:** there is a pre-existing ktlint violation (`client/build.gradle.kts` trailing blank line) on `main`, so `./gradlew ktlintCheck` and the full `./gradlew build` fail on it. Build/verify with `./gradlew build -x ktlintKotlinScriptCheck` (or run `./gradlew ktlintFormat` if you intend to fix it).
